@@ -62,7 +62,7 @@ Added API fetcher functions:
 ## 🚀 Deployment
 - ✅ Build successful: `npx next build`
 - ✅ Git committed and pushed to main
-- ✅ Deployed to Vercel production: https://presage-umber.vercel.app
+- ✅ Deployed to Vercel production: https://presage.market
 
 ## 📊 API Architecture
 

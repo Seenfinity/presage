@@ -484,7 +484,7 @@ function AgentApiModal({ onClose }: { onClose: () => void }) {
             <p className="text-xs font-semibold mb-1">Register Your Agent</p>
             <div className="p-3 rounded-lg bg-secondary font-mono text-[11px] space-y-1">
               <p className="text-muted-foreground"># POST /api/agents/register</p>
-              <p>curl -X POST https://presage-umber.vercel.app/api/agents/register \</p>
+              <p>curl -X POST https://presage.market/api/agents/register \</p>
               <p className="pl-4">-H &quot;Content-Type: application/json&quot; \</p>
               <p className="pl-4">-d &apos;{'{'}</p>
               <p className="pl-8">&quot;name&quot;: &quot;MyAgent&quot;,</p>
@@ -504,7 +504,7 @@ function AgentApiModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <Separator />
-          <p className="text-[10px] text-muted-foreground">Base URL: <span className="font-mono">https://presage-umber.vercel.app</span></p>
+          <p className="text-[10px] text-muted-foreground">Base URL: <span className="font-mono">https://presage.market</span></p>
         </CardContent>
       </Card>
     </div>
