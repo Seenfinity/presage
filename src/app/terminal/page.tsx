@@ -17,10 +17,10 @@ import {
 interface DFlowMarket {
   ticker: string;
   title: string;
-  yesBid: number;
-  yesAsk: number;
-  noBid: number;
-  noAsk: number;
+  yesBid: number | null;
+  yesAsk: number | null;
+  noBid: number | null;
+  noAsk: number | null;
   volume: number;
   status: string;
 }
@@ -47,8 +47,12 @@ function eventsToMarkets(events: DFlowEvent[]): Market[] {
   const markets: Market[] = [];
   for (const event of events) {
     for (const m of event.markets) {
-      const yesPrice = m.yesBid > 0 ? m.yesBid : m.yesAsk > 0 ? m.yesAsk : 0.5;
-      const noPrice = m.noBid > 0 ? m.noBid : m.noAsk > 0 ? m.noAsk : 0.5;
+      const yesBid = m.yesBid ?? 0;
+      const yesAsk = m.yesAsk ?? 0;
+      const noBid = m.noBid ?? 0;
+      const noAsk = m.noAsk ?? 0;
+      const yesPrice = yesBid > 0 ? yesBid : yesAsk > 0 ? yesAsk : 0.5;
+      const noPrice = noBid > 0 ? noBid : noAsk > 0 ? noAsk : 0.5;
       markets.push({
         id: m.ticker,
         title: event.markets.length > 1 ? `${event.title} — ${m.title}` : event.title,
@@ -95,6 +99,7 @@ function PriceChart() {
   const max = Math.max(...prices) + 0.02;
   const range = max - min;
   const w = 400, h = 180;
+  const [activeTimeframe, setActiveTimeframe] = useState("24H");
 
   const points = priceHistory.map((p, i) => ({
     x: (i / (priceHistory.length - 1)) * w,
@@ -127,7 +132,8 @@ function PriceChart() {
           </div>
           <div className="flex gap-0.5 bg-secondary rounded-lg p-0.5">
             {["1H", "4H", "24H", "7D", "ALL"].map(tf => (
-              <Button key={tf} variant={tf === "24H" ? "default" : "ghost"} size="sm" className="h-7 px-2.5 text-[10px]">
+              <Button key={tf} variant={tf === activeTimeframe ? "default" : "ghost"} size="sm" className="h-7 px-2.5 text-[10px]"
+                onClick={() => setActiveTimeframe(tf)}>
                 {tf}
               </Button>
             ))}
@@ -248,9 +254,11 @@ function TradeFeed({ trades }: { trades: Trade[] }) {
                 <span className="text-muted-foreground">·</span>
                 <span className="font-mono text-muted-foreground">${t.amount.toLocaleString()}</span>
               </div>
-              <div className="pl-3 border-l-2 border-border">
-                <p className="text-[11px] text-muted-foreground italic leading-relaxed">{t.reasoning}</p>
-              </div>
+              {t.reasoning && (
+                <div className="pl-3 border-l-2 border-border">
+                  <p className="text-[11px] text-muted-foreground italic leading-relaxed">{t.reasoning}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -301,12 +309,21 @@ function AgentLeaderboard({ agents, selectedAgent, onSelectAgent }: { agents: Ag
   );
 }
 
-function TradePanel({ market }: { market: Market }) {
+function TradePanel({ market, onTrade }: { market: Market; onTrade: (msg: string) => void }) {
   const [side, setSide] = useState<"YES" | "NO">("YES");
   const [amount, setAmount] = useState("100");
   const [orderType, setOrderType] = useState("market");
   const price = side === "YES" ? market.yesPrice : market.noPrice;
   const shares = price > 0 ? Math.floor(Number(amount) / price) : 0;
+
+  const handleTrade = () => {
+    if (!Number(amount) || Number(amount) <= 0) {
+      onTrade("Please enter a valid amount");
+      return;
+    }
+    const label = orderType === "market" ? `Buy ${side}` : orderType === "limit" ? `Place Limit ${side}` : orderType === "sl" ? "Set Stop Loss" : "Set Take Profit";
+    onTrade(`${label}: $${amount} at ${(price*100).toFixed(0)}¢ — Connect wallet to execute`);
+  };
 
   return (
     <Card className="sticky top-4">
@@ -360,7 +377,7 @@ function TradePanel({ market }: { market: Market }) {
           <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Max payout</span><span className="font-mono text-[var(--green)]">${shares.toLocaleString()}</span></div>
         </div>
 
-        <Button className={`w-full h-11 font-bold ${
+        <Button onClick={handleTrade} className={`w-full h-11 font-bold ${
           side === "YES" ? "bg-[var(--green)] text-black hover:bg-[var(--green)]/90" : "bg-[var(--red)] text-white hover:bg-[var(--red)]/90"
         }`}>
           {orderType === "market" ? `Buy ${side}` : orderType === "limit" ? `Place Limit ${side}` : orderType === "sl" ? "Set Stop Loss" : "Set Take Profit"}
@@ -375,11 +392,106 @@ function TradePanel({ market }: { market: Market }) {
               <span className="text-xs font-semibold font-display">Copy Trading</span>
             </div>
             <p className="text-[11px] text-muted-foreground mb-3">Auto-copy positions from top-performing AI agents.</p>
-            <Button variant="outline" className="w-full border-[var(--purple)]/20 text-[var(--purple)] hover:bg-[var(--purple)]/10 text-xs">Coming Soon</Button>
+            <Button variant="outline" className="w-full border-[var(--purple)]/20 text-[var(--purple)] hover:bg-[var(--purple)]/10 text-xs"
+              onClick={() => onTrade("Copy Trading — Coming Soon!")}>Coming Soon</Button>
           </CardContent>
         </Card>
       </CardContent>
     </Card>
+  );
+}
+
+// Portfolio sidebar view
+function PortfolioView({ onConnectWallet }: { onConnectWallet: () => void }) {
+  return (
+    <div className="space-y-4 p-2">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Paper Trading</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="p-3 rounded-lg bg-secondary space-y-2">
+            <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Balance</span><span className="font-mono font-bold">$10,000.00</span></div>
+            <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Open Positions</span><span className="font-mono">0</span></div>
+            <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Unrealized P&L</span><span className="font-mono text-muted-foreground">$0.00</span></div>
+          </div>
+          <Separator />
+          <p className="text-[11px] text-muted-foreground text-center">No open positions yet. Start trading!</p>
+        </CardContent>
+      </Card>
+      <Card className="border-[var(--blue)]/20 bg-[var(--blue)]/5">
+        <CardContent className="p-4 text-center">
+          <svg className="w-8 h-8 mx-auto mb-2 text-[var(--blue)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+          </svg>
+          <p className="text-xs font-semibold mb-1">Connect Wallet</p>
+          <p className="text-[10px] text-muted-foreground mb-3">Connect your Solana wallet to trade with real funds.</p>
+          <Button size="sm" className="w-full text-xs" onClick={onConnectWallet}>Connect Wallet</Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Agent API modal
+function AgentApiModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <Card className="w-[520px] max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">🤖 Agent API Integration</CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-7 w-7 p-0">✕</Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold mb-1">Register Your Agent</p>
+            <div className="p-3 rounded-lg bg-secondary font-mono text-[11px] space-y-1">
+              <p className="text-muted-foreground"># POST /api/agents/register</p>
+              <p>curl -X POST https://presage-umber.vercel.app/api/agents/register \</p>
+              <p className="pl-4">-H &quot;Content-Type: application/json&quot; \</p>
+              <p className="pl-4">-d &apos;{'{'}</p>
+              <p className="pl-8">&quot;name&quot;: &quot;MyAgent&quot;,</p>
+              <p className="pl-8">&quot;description&quot;: &quot;AI trading agent&quot;,</p>
+              <p className="pl-8">&quot;wallet&quot;: &quot;YOUR_SOLANA_PUBKEY&quot;</p>
+              <p className="pl-4">{'}'}&apos;</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold mb-1">API Endpoints</p>
+            <div className="space-y-1.5 text-[11px]">
+              <div className="flex gap-2"><Badge variant="secondary" className="text-[9px] h-4">GET</Badge><span className="font-mono">/api/events</span><span className="text-muted-foreground">— List markets</span></div>
+              <div className="flex gap-2"><Badge variant="secondary" className="text-[9px] h-4">GET</Badge><span className="font-mono">/api/markets/:ticker/orderbook</span><span className="text-muted-foreground">— Orderbook</span></div>
+              <div className="flex gap-2"><Badge variant="secondary" className="text-[9px] h-4">GET</Badge><span className="font-mono">/api/agents</span><span className="text-muted-foreground">— Leaderboard</span></div>
+              <div className="flex gap-2"><Badge variant="secondary" className="text-[9px] h-4">POST</Badge><span className="font-mono">/api/agents/register</span><span className="text-muted-foreground">— Register agent</span></div>
+              <div className="flex gap-2"><Badge variant="secondary" className="text-[9px] h-4">POST</Badge><span className="font-mono">/api/agents/:id/trade</span><span className="text-muted-foreground">— Submit trade</span></div>
+            </div>
+          </div>
+          <Separator />
+          <p className="text-[10px] text-muted-foreground">Base URL: <span className="font-mono">https://presage-umber.vercel.app</span></p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Toast notification
+function Toast({ message, onClose }: { message: string; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+      <Card className="shadow-lg border-border/50">
+        <CardContent className="p-3 flex items-center gap-3">
+          <span className="text-sm">{message}</span>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 text-muted-foreground">✕</Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -392,6 +504,11 @@ export default function Home() {
   const [trades, setTrades] = useState<Trade[]>(mockTrades);
   const [agents, setAgents] = useState<Agent[]>(mockAgents);
   const [usingRealData, setUsingRealData] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [showAgentApi, setShowAgentApi] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const showToast = useCallback((msg: string) => setToast(msg), []);
 
   // Fetch events and populate markets
   const fetchData = useCallback(async () => {
@@ -510,149 +627,188 @@ export default function Home() {
 
   const market = markets.find(m => m.id === selectedMarket) || markets[0];
 
+  // Filter markets by search
+  const filteredMarkets = searchQuery
+    ? markets.filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : markets;
+
   // Compute sidebar stats
   const totalVolume = markets.reduce((sum, m) => sum + m.totalVolume, 0);
   const totalVolumeStr = totalVolume >= 1e6 ? `$${(totalVolume/1e6).toFixed(0)}M` : totalVolume >= 1e3 ? `$${(totalVolume/1e3).toFixed(0)}K` : `$${totalVolume}`;
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[280px] border-r border-border flex flex-col h-full bg-sidebar">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
-              <span className="font-bold text-sm text-black font-display">P</span>
-            </div>
-            <div>
-              <span className="text-sm font-semibold font-display">Presage</span>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />
-                <span className="text-[9px] text-muted-foreground">Solana Mainnet</span>
-              </div>
-            </div>
-            <Badge variant="outline" className="ml-auto text-[9px] text-[var(--green)] border-[var(--green)]/20">BETA</Badge>
+    <div className="flex h-screen flex-col">
+      {/* Top nav bar with Connect Wallet + Agent API */}
+      <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
+            <span className="font-bold text-xs text-black font-display">P</span>
           </div>
+          <span className="text-sm font-semibold font-display">Presage Terminal</span>
+          <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">BETA</Badge>
         </div>
-
-        <div className="p-2 border-b border-border">
-          <Tabs defaultValue="markets" onValueChange={v => setActiveTab(v)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="markets" className="flex-1 text-xs">Markets</TabsTrigger>
-              <TabsTrigger value="agents" className="flex-1 text-xs">Agents</TabsTrigger>
-              <TabsTrigger value="portfolio" className="flex-1 text-xs">Portfolio</TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5 border-[var(--cyan)]/20 text-[var(--cyan)] hover:bg-[var(--cyan)]/10"
+            onClick={() => setShowAgentApi(true)}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+            </svg>
+            Agent API
+          </Button>
+          <Button size="sm" className="text-xs h-8 gap-1.5 bg-[var(--blue)] text-white hover:bg-[var(--blue)]/90"
+            onClick={() => showToast("🔗 Connect Wallet — Coming Soon!")}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+            </svg>
+            Connect Wallet
+          </Button>
         </div>
+      </header>
 
-        <div className="px-3 pt-3">
-          <Input placeholder="Search markets..." className="h-8 text-xs" />
-        </div>
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar */}
+        <aside className="w-[280px] border-r border-border flex flex-col bg-sidebar shrink-0">
+          <div className="p-2 border-b border-border shrink-0">
+            <Tabs value={activeTab} onValueChange={v => setActiveTab(v)}>
+              <TabsList className="w-full">
+                <TabsTrigger value="markets" className="flex-1 text-xs">Markets</TabsTrigger>
+                <TabsTrigger value="agents" className="flex-1 text-xs">Agents</TabsTrigger>
+                <TabsTrigger value="portfolio" className="flex-1 text-xs">Portfolio</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-        <ScrollArea className="flex-1 px-2 py-2">
-          <div className="space-y-1">
-            {markets.map(m => (
-              <button key={m.id} onClick={() => { setSelectedMarket(m.id); setActiveTab("markets"); }}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${selectedMarket === m.id ? "bg-accent border border-primary/20" : "hover:bg-accent/50 border border-transparent"}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Badge variant="secondary" className="text-[9px] h-4">{m.category}</Badge>
-                  <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                    <span className="w-1 h-1 rounded-full bg-[var(--green)] pulse-live" />{m.agentsTrading > 0 ? m.agentsTrading : "·"}
-                  </span>
+          {activeTab === "markets" && (
+            <>
+              <div className="px-3 pt-3 shrink-0">
+                <Input placeholder="Search markets..." className="h-8 text-xs" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="space-y-1 px-2 py-2">
+                  {filteredMarkets.map(m => (
+                    <button key={m.id} onClick={() => { setSelectedMarket(m.id); }}
+                      className={`w-full text-left p-3 rounded-lg transition-colors ${selectedMarket === m.id ? "bg-accent border border-primary/20" : "hover:bg-accent/50 border border-transparent"}`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Badge variant="secondary" className="text-[9px] h-4">{m.category}</Badge>
+                        <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                          <span className="w-1 h-1 rounded-full bg-[var(--green)] pulse-live" />{m.agentsTrading > 0 ? m.agentsTrading : "·"}
+                        </span>
+                      </div>
+                      <p className="text-[12px] leading-snug font-medium mb-1.5 line-clamp-2">{m.title}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-2">
+                          <span className="font-mono text-[11px] text-[var(--green)]">Y {(m.yesPrice*100).toFixed(0)}¢</span>
+                          <span className="font-mono text-[11px] text-[var(--red)]">N {(m.noPrice*100).toFixed(0)}¢</span>
+                        </div>
+                        {m.totalVolume > 0 && (
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {m.totalVolume >= 1e6 ? `$${(m.totalVolume/1e6).toFixed(1)}M` : m.totalVolume >= 1e3 ? `$${(m.totalVolume/1e3).toFixed(0)}K` : `$${m.totalVolume}`}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-                <p className="text-[12px] leading-snug font-medium mb-1.5">{m.title}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <span className="font-mono text-[11px] text-[var(--green)]">Y {(m.yesPrice*100).toFixed(0)}¢</span>
-                    <span className="font-mono text-[11px] text-[var(--red)]">N {(m.noPrice*100).toFixed(0)}¢</span>
-                  </div>
-                  <span className={`font-mono text-[11px] ${m.change24h >= 0 ? "text-[var(--green)]" : "text-[var(--red)]"}`}>
-                    {m.change24h >= 0 ? "+" : ""}{m.change24h}%
-                  </span>
+              </ScrollArea>
+            </>
+          )}
+
+          {activeTab === "agents" && (
+            <ScrollArea className="flex-1">
+              <div className="p-2">
+                <AgentLeaderboard agents={agents} selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
+              </div>
+            </ScrollArea>
+          )}
+
+          {activeTab === "portfolio" && (
+            <ScrollArea className="flex-1">
+              <PortfolioView onConnectWallet={() => showToast("🔗 Connect Wallet — Coming Soon!")} />
+            </ScrollArea>
+          )}
+
+          <div className="p-3 border-t border-border shrink-0">
+            <div className="grid grid-cols-3 gap-2">
+              {[{ l: "Volume", v: totalVolumeStr }, { l: "Agents", v: String(agents.length) }, { l: "Markets", v: String(markets.length) }].map(s => (
+                <div key={s.l} className="text-center p-1.5 rounded-md bg-secondary">
+                  <div className="font-mono text-xs font-semibold">{s.v}</div>
+                  <div className="text-[8px] text-muted-foreground mt-0.5">{s.l}</div>
                 </div>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
-        </ScrollArea>
+        </aside>
 
-        <div className="p-3 border-t border-border">
-          <div className="grid grid-cols-3 gap-2">
-            {[{ l: "Volume", v: totalVolumeStr }, { l: "Agents", v: String(agents.length) }, { l: "Markets", v: String(markets.length) }].map(s => (
-              <div key={s.l} className="text-center p-1.5 rounded-md bg-secondary">
-                <div className="font-mono text-xs font-semibold">{s.v}</div>
-                <div className="text-[8px] text-muted-foreground mt-0.5">{s.l}</div>
+        {/* Main */}
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Market header */}
+          <div className="px-6 py-4 border-b border-border bg-card shrink-0">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0 flex-1 mr-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Badge variant="secondary" className="text-[9px]">{market.category}</Badge>
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />{market.agentsTrading > 0 ? `${market.agentsTrading} agents trading` : "Live"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">· Closes {new Date(market.closeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+                <h1 className="text-lg font-semibold font-display tracking-tight truncate">{market.title}</h1>
+                <div className="flex items-center gap-4 mt-1.5 text-[11px] text-muted-foreground">
+                  <span className="font-mono">Vol {market.totalVolume >= 1e6 ? `$${(market.totalVolume/1e6).toFixed(1)}M` : market.totalVolume >= 1e3 ? `$${(market.totalVolume/1000).toFixed(0)}K` : `$${market.totalVolume}`}</span>
+                  <span className="font-mono">24h {market.volume24h >= 1e3 ? `$${(market.volume24h/1000).toFixed(0)}K` : `$${market.volume24h}`}</span>
+                </div>
               </div>
-            ))}
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="text-center px-4 py-2 rounded-lg bg-[var(--green-dim)] border border-[var(--green)]/10">
+                  <div className="font-mono text-xl font-bold text-[var(--green)]">{(market.yesPrice*100).toFixed(0)}¢</div>
+                  <div className="text-[9px] text-[var(--green)]/60 mt-0.5">YES</div>
+                </div>
+                <div className="text-center px-4 py-2 rounded-lg bg-[var(--red-dim)] border border-[var(--red)]/10">
+                  <div className="font-mono text-xl font-bold text-[var(--red)]">{(market.noPrice*100).toFixed(0)}¢</div>
+                  <div className="text-[9px] text-[var(--red)]/60 mt-0.5">NO</div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </aside>
 
-      {/* Main */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Market header */}
-        <div className="px-6 py-4 border-b border-border bg-card">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Badge variant="secondary" className="text-[9px]">{market.category}</Badge>
-                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />{market.agentsTrading > 0 ? `${market.agentsTrading} agents trading` : "Live"}
-                </span>
-                <span className="text-[10px] text-muted-foreground">· Closes {new Date(market.closeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          {/* Content - scrollable */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-5 space-y-4">
+                <PriceChart />
+                <Orderbook orderbook={orderbook} />
               </div>
-              <h1 className="text-lg font-semibold font-display tracking-tight">{market.title}</h1>
-              <div className="flex items-center gap-4 mt-1.5 text-[11px] text-muted-foreground">
-                <span className="font-mono">Vol {market.totalVolume >= 1e6 ? `$${(market.totalVolume/1e6).toFixed(1)}M` : market.totalVolume >= 1e3 ? `$${(market.totalVolume/1000).toFixed(0)}K` : `$${market.totalVolume}`}</span>
-                <span className="font-mono">24h {market.volume24h >= 1e3 ? `$${(market.volume24h/1000).toFixed(0)}K` : `$${market.volume24h}`}</span>
+              <div className="col-span-4 space-y-4">
+                <TradeFeed trades={trades} />
+                <AgentLeaderboard agents={agents} selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-center px-4 py-2 rounded-lg bg-[var(--green-dim)] border border-[var(--green)]/10">
-                <div className="font-mono text-xl font-bold text-[var(--green)]">{(market.yesPrice*100).toFixed(0)}¢</div>
-                <div className="text-[9px] text-[var(--green)]/60 mt-0.5">YES</div>
+              <div className="col-span-3">
+                <TradePanel market={market} onTrade={showToast} />
               </div>
-              <div className="text-center px-4 py-2 rounded-lg bg-[var(--red-dim)] border border-[var(--red)]/10">
-                <div className="font-mono text-xl font-bold text-[var(--red)]">{(market.noPrice*100).toFixed(0)}¢</div>
-                <div className="text-[9px] text-[var(--red)]/60 mt-0.5">NO</div>
-              </div>
-              <Badge variant="outline" className={`text-xs font-mono ${market.change24h >= 0 ? "text-[var(--green)] border-[var(--green)]/20" : "text-[var(--red)] border-[var(--red)]/20"}`}>
-                {market.change24h >= 0 ? "↑" : "↓"} {Math.abs(market.change24h)}%
-              </Badge>
             </div>
           </div>
-        </div>
 
-        {/* Content */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-5 space-y-4">
-              <PriceChart />
-              <Orderbook orderbook={orderbook} />
+          {/* Footer */}
+          <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card shrink-0">
+            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />Connected</span>
+              <span className="font-mono">Block #284,729,103</span>
+              <span className="font-mono">42ms</span>
+              {usingRealData && <Badge variant="outline" className="text-[8px] h-4 text-[var(--green)] border-[var(--green)]/20">LIVE DATA</Badge>}
             </div>
-            <div className="col-span-4 space-y-4">
-              <TradeFeed trades={trades} />
-              <AgentLeaderboard agents={agents} selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
-            </div>
-            <div className="col-span-3">
-              <TradePanel market={market} />
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="text-muted-foreground">Powered by</span>
+              <span className="font-semibold text-[var(--cyan)] font-display">DFlow</span>
+              <span className="text-muted-foreground">on</span>
+              <span className="font-semibold gradient-text font-display">Solana</span>
             </div>
           </div>
-        </ScrollArea>
+        </main>
+      </div>
 
-        {/* Footer */}
-        <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card">
-          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />Connected</span>
-            <span className="font-mono">Block #284,729,103</span>
-            <span className="font-mono">42ms</span>
-          </div>
-          <div className="flex items-center gap-2 text-[10px]">
-            <span className="text-muted-foreground">Powered by</span>
-            <span className="font-semibold text-[var(--cyan)] font-display">DFlow</span>
-            <span className="text-muted-foreground">on</span>
-            <span className="font-semibold gradient-text font-display">Solana</span>
-          </div>
-        </div>
-      </main>
+      {/* Modals and toasts */}
+      {showAgentApi && <AgentApiModal onClose={() => setShowAgentApi(false)} />}
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
 }
