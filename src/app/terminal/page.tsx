@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,86 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { mockMarkets, mockAgents, mockTrades, mockOrderbook, priceHistory } from "@/lib/mock-data";
+import {
+  mockMarkets, mockAgents, mockTrades, mockOrderbook, priceHistory,
+  type Market, type Agent, type Trade, type OrderbookLevel,
+} from "@/lib/mock-data";
+
+// Types for DFlow API responses
+interface DFlowMarket {
+  ticker: string;
+  title: string;
+  yesBid: number;
+  yesAsk: number;
+  noBid: number;
+  noAsk: number;
+  volume: number;
+  status: string;
+}
+
+interface DFlowEvent {
+  ticker: string;
+  title: string;
+  volume: number;
+  volume24h: number;
+  markets: DFlowMarket[];
+}
+
+interface LeaderboardEntry {
+  agentId: string;
+  agentName: string;
+  totalPnL: number;
+  totalPnLPercent: number;
+  totalTrades: number;
+  rank: number;
+}
+
+// Convert DFlow events to our Market format
+function eventsToMarkets(events: DFlowEvent[]): Market[] {
+  const markets: Market[] = [];
+  for (const event of events) {
+    for (const m of event.markets) {
+      const yesPrice = m.yesBid > 0 ? m.yesBid : m.yesAsk > 0 ? m.yesAsk : 0.5;
+      const noPrice = m.noBid > 0 ? m.noBid : m.noAsk > 0 ? m.noAsk : 0.5;
+      markets.push({
+        id: m.ticker,
+        title: event.markets.length > 1 ? `${event.title} — ${m.title}` : event.title,
+        category: "Market",
+        yesPrice,
+        noPrice,
+        change24h: 0,
+        volume24h: event.volume24h || 0,
+        totalVolume: m.volume || event.volume || 0,
+        agentsTrading: 0,
+        closeDate: "2026-12-31",
+        status: (m.status as Market["status"]) || "open",
+      });
+    }
+  }
+  return markets;
+}
+
+// Convert DFlow orderbook to sorted arrays
+function parseOrderbook(data: { yes_bids?: Record<string, number>; no_bids?: Record<string, number>; yes_asks?: Record<string, number>; no_asks?: Record<string, number> }): { bids: OrderbookLevel[]; asks: OrderbookLevel[] } {
+  const bids: OrderbookLevel[] = [];
+  const asks: OrderbookLevel[] = [];
+
+  if (data.yes_bids) {
+    for (const [price, size] of Object.entries(data.yes_bids)) {
+      bids.push({ price: parseFloat(price), size: Number(size) });
+    }
+  }
+  if (data.yes_asks) {
+    for (const [price, size] of Object.entries(data.yes_asks)) {
+      asks.push({ price: parseFloat(price), size: Number(size) });
+    }
+  }
+
+  bids.sort((a, b) => b.price - a.price);
+  asks.sort((a, b) => a.price - b.price);
+
+  return { bids: bids.slice(0, 7), asks: asks.slice(0, 7) };
+}
 
 function PriceChart() {
   const prices = priceHistory.map(p => p.price);
@@ -77,8 +156,17 @@ function PriceChart() {
   );
 }
 
-function Orderbook() {
-  const maxSize = Math.max(...mockOrderbook.bids.map(b => b.size), ...mockOrderbook.asks.map(a => a.size));
+function Orderbook({ orderbook }: { orderbook: { bids: OrderbookLevel[]; asks: OrderbookLevel[] } }) {
+  const maxSize = Math.max(
+    ...orderbook.bids.map(b => b.size),
+    ...orderbook.asks.map(a => a.size),
+    1
+  );
+  const topBid = orderbook.bids[0]?.price ?? 0;
+  const topAsk = orderbook.asks[0]?.price ?? 1;
+  const spread = topAsk - topBid;
+  const mid = (topBid + topAsk) / 2;
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -94,36 +182,36 @@ function Orderbook() {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-px">
             <div className="flex justify-between text-[9px] text-muted-foreground uppercase tracking-wider px-2 mb-1"><span>Bid</span><span>Size</span></div>
-            {mockOrderbook.bids.map((b, i) => (
+            {orderbook.bids.map((b, i) => (
               <div key={i} className="relative flex justify-between items-center text-xs py-1 px-2 rounded">
                 <div className="absolute inset-y-0 left-0 bg-[var(--green)]/8 rounded" style={{ width: `${(b.size/maxSize)*100}%` }} />
                 <span className="relative font-mono text-[var(--green)] text-[11px]">{(b.price*100).toFixed(0)}¢</span>
-                <span className="relative font-mono text-muted-foreground text-[11px]">{(b.size/1000).toFixed(1)}K</span>
+                <span className="relative font-mono text-muted-foreground text-[11px]">{b.size >= 1000 ? `${(b.size/1000).toFixed(1)}K` : b.size}</span>
               </div>
             ))}
           </div>
           <div className="space-y-px">
             <div className="flex justify-between text-[9px] text-muted-foreground uppercase tracking-wider px-2 mb-1"><span>Ask</span><span>Size</span></div>
-            {mockOrderbook.asks.map((a, i) => (
+            {orderbook.asks.map((a, i) => (
               <div key={i} className="relative flex justify-between items-center text-xs py-1 px-2 rounded">
                 <div className="absolute inset-y-0 right-0 bg-[var(--red)]/8 rounded" style={{ width: `${(a.size/maxSize)*100}%` }} />
                 <span className="relative font-mono text-[var(--red)] text-[11px]">{(a.price*100).toFixed(0)}¢</span>
-                <span className="relative font-mono text-muted-foreground text-[11px]">{(a.size/1000).toFixed(1)}K</span>
+                <span className="relative font-mono text-muted-foreground text-[11px]">{a.size >= 1000 ? `${(a.size/1000).toFixed(1)}K` : a.size}</span>
               </div>
             ))}
           </div>
         </div>
         <Separator className="my-2" />
         <div className="flex justify-center gap-6 text-[10px]">
-          <span className="text-muted-foreground">Spread <span className="font-mono text-foreground ml-1">2¢</span></span>
-          <span className="text-muted-foreground">Mid <span className="font-mono text-foreground ml-1">72¢</span></span>
+          <span className="text-muted-foreground">Spread <span className="font-mono text-foreground ml-1">{(spread*100).toFixed(0)}¢</span></span>
+          <span className="text-muted-foreground">Mid <span className="font-mono text-foreground ml-1">{(mid*100).toFixed(0)}¢</span></span>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function TradeFeed() {
+function TradeFeed({ trades }: { trades: Trade[] }) {
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -140,7 +228,7 @@ function TradeFeed() {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {mockTrades.map(t => (
+          {trades.map(t => (
             <div key={t.id} className="p-3 rounded-lg bg-secondary/50 border border-border/50">
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
@@ -171,7 +259,7 @@ function TradeFeed() {
   );
 }
 
-function AgentLeaderboard({ selectedAgent, onSelectAgent }: { selectedAgent: string | null; onSelectAgent: (id: string) => void }) {
+function AgentLeaderboard({ agents, selectedAgent, onSelectAgent }: { agents: Agent[]; selectedAgent: string | null; onSelectAgent: (id: string) => void }) {
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -182,7 +270,7 @@ function AgentLeaderboard({ selectedAgent, onSelectAgent }: { selectedAgent: str
       </CardHeader>
       <CardContent>
         <div className="space-y-1">
-          {mockAgents.map(a => (
+          {agents.map(a => (
             <button key={a.id} onClick={() => onSelectAgent(a.id)}
               className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition-colors text-left ${selectedAgent === a.id ? "bg-accent" : "hover:bg-accent/50"}`}>
               <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold font-mono border ${
@@ -213,12 +301,12 @@ function AgentLeaderboard({ selectedAgent, onSelectAgent }: { selectedAgent: str
   );
 }
 
-function TradePanel() {
+function TradePanel({ market }: { market: Market }) {
   const [side, setSide] = useState<"YES" | "NO">("YES");
   const [amount, setAmount] = useState("100");
   const [orderType, setOrderType] = useState("market");
-  const price = side === "YES" ? 0.72 : 0.28;
-  const shares = Math.floor(Number(amount) / price);
+  const price = side === "YES" ? market.yesPrice : market.noPrice;
+  const shares = price > 0 ? Math.floor(Number(amount) / price) : 0;
 
   return (
     <Card className="sticky top-4">
@@ -229,11 +317,11 @@ function TradePanel() {
         <div className="grid grid-cols-2 gap-2 p-1 bg-secondary rounded-lg">
           <Button onClick={() => setSide("YES")} variant={side === "YES" ? "default" : "ghost"}
             className={`h-10 font-semibold ${side === "YES" ? "bg-[var(--green)] text-black hover:bg-[var(--green)]/90 shadow-lg shadow-[var(--green)]/20" : ""}`}>
-            Yes · 72¢
+            Yes · {(market.yesPrice*100).toFixed(0)}¢
           </Button>
           <Button onClick={() => setSide("NO")} variant={side === "NO" ? "default" : "ghost"}
             className={`h-10 font-semibold ${side === "NO" ? "bg-[var(--red)] text-white hover:bg-[var(--red)]/90 shadow-lg shadow-[var(--red)]/20" : ""}`}>
-            No · 28¢
+            No · {(market.noPrice*100).toFixed(0)}¢
           </Button>
         </div>
 
@@ -296,11 +384,135 @@ function TradePanel() {
 }
 
 export default function Home() {
-  const [selectedMarket, setSelectedMarket] = useState("btc-100k-mar");
+  const [markets, setMarkets] = useState<Market[]>(mockMarkets);
+  const [selectedMarket, setSelectedMarket] = useState<string>(mockMarkets[0].id);
   const [activeTab, setActiveTab] = useState("markets");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [orderbook, setOrderbook] = useState(mockOrderbook);
+  const [trades, setTrades] = useState<Trade[]>(mockTrades);
+  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  const [usingRealData, setUsingRealData] = useState(false);
 
-  const market = mockMarkets.find(m => m.id === selectedMarket) || mockMarkets[0];
+  // Fetch events and populate markets
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/events?limit=20");
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      const events: DFlowEvent[] = data.events || [];
+      if (events.length > 0) {
+        const realMarkets = eventsToMarkets(events);
+        if (realMarkets.length > 0) {
+          setMarkets(realMarkets);
+          if (!usingRealData) {
+            setSelectedMarket(realMarkets[0].id);
+            setUsingRealData(true);
+          }
+        }
+      }
+    } catch {
+      // Keep mock data
+    }
+
+    // Fetch agents/leaderboard
+    try {
+      const res = await fetch("/api/agents");
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      const leaderboard: LeaderboardEntry[] = data.leaderboard || [];
+      if (leaderboard.length > 0) {
+        const realAgents: Agent[] = leaderboard.map((entry) => ({
+          id: entry.agentId,
+          name: entry.agentName,
+          emoji: "🤖",
+          roi: entry.totalPnLPercent,
+          winRate: 0,
+          totalTrades: entry.totalTrades,
+          followers: 0,
+          rank: entry.rank,
+          streak: 0,
+          lastComment: "",
+          lastPosition: { market: "", side: "YES" as const, confidence: 0 },
+        }));
+        setAgents(realAgents);
+      }
+    } catch {
+      // Keep mock agents
+    }
+  }, [usingRealData]);
+
+  // Fetch orderbook for selected market
+  const fetchSelectedOrderbook = useCallback(async (ticker: string) => {
+    try {
+      const res = await fetch(`/api/markets/${ticker}/orderbook`);
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      const raw = data.orderbook || data;
+      const parsed = parseOrderbook(raw);
+      if (parsed.bids.length > 0 || parsed.asks.length > 0) {
+        setOrderbook(parsed);
+      }
+    } catch {
+      setOrderbook(mockOrderbook);
+    }
+  }, []);
+
+  // Fetch trades for selected market
+  const fetchSelectedTrades = useCallback(async (ticker: string) => {
+    try {
+      const res = await fetch(`/api/markets/${ticker}/trades?limit=10`);
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      const rawTrades = data.trades || [];
+      if (rawTrades.length > 0) {
+        const realTrades: Trade[] = rawTrades.map((t: { id?: string; agentName?: string; side?: string; price?: number; quantity?: number; timestamp?: string; reasoning?: string }, i: number) => ({
+          id: t.id || `rt-${i}`,
+          agentName: t.agentName || "Unknown",
+          agentEmoji: "🤖",
+          market: ticker,
+          side: (t.side === "YES" ? "YES" : "NO") as "YES" | "NO",
+          price: t.price || 0.5,
+          amount: t.quantity || 0,
+          timestamp: t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : "now",
+          reasoning: t.reasoning || "",
+        }));
+        setTrades(realTrades);
+      }
+    } catch {
+      // Keep existing trades
+    }
+  }, []);
+
+  // Initial load + auto-refresh every 30s
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // Fetch orderbook + trades when market changes
+  useEffect(() => {
+    if (selectedMarket) {
+      fetchSelectedOrderbook(selectedMarket);
+      fetchSelectedTrades(selectedMarket);
+    }
+  }, [selectedMarket, fetchSelectedOrderbook, fetchSelectedTrades]);
+
+  // Auto-refresh orderbook every 30s
+  useEffect(() => {
+    if (!selectedMarket) return;
+    const interval = setInterval(() => {
+      fetchSelectedOrderbook(selectedMarket);
+      fetchSelectedTrades(selectedMarket);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [selectedMarket, fetchSelectedOrderbook, fetchSelectedTrades]);
+
+  const market = markets.find(m => m.id === selectedMarket) || markets[0];
+
+  // Compute sidebar stats
+  const totalVolume = markets.reduce((sum, m) => sum + m.totalVolume, 0);
+  const totalVolumeStr = totalVolume >= 1e6 ? `$${(totalVolume/1e6).toFixed(0)}M` : totalVolume >= 1e3 ? `$${(totalVolume/1e3).toFixed(0)}K` : `$${totalVolume}`;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -338,13 +550,13 @@ export default function Home() {
 
         <ScrollArea className="flex-1 px-2 py-2">
           <div className="space-y-1">
-            {mockMarkets.map(m => (
+            {markets.map(m => (
               <button key={m.id} onClick={() => { setSelectedMarket(m.id); setActiveTab("markets"); }}
                 className={`w-full text-left p-3 rounded-lg transition-colors ${selectedMarket === m.id ? "bg-accent border border-primary/20" : "hover:bg-accent/50 border border-transparent"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <Badge variant="secondary" className="text-[9px] h-4">{m.category}</Badge>
                   <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                    <span className="w-1 h-1 rounded-full bg-[var(--green)] pulse-live" />{m.agentsTrading}
+                    <span className="w-1 h-1 rounded-full bg-[var(--green)] pulse-live" />{m.agentsTrading > 0 ? m.agentsTrading : "·"}
                   </span>
                 </div>
                 <p className="text-[12px] leading-snug font-medium mb-1.5">{m.title}</p>
@@ -364,7 +576,7 @@ export default function Home() {
 
         <div className="p-3 border-t border-border">
           <div className="grid grid-cols-3 gap-2">
-            {[{ l: "Volume", v: "$40M" }, { l: "Agents", v: "217" }, { l: "Markets", v: "6" }].map(s => (
+            {[{ l: "Volume", v: totalVolumeStr }, { l: "Agents", v: String(agents.length) }, { l: "Markets", v: String(markets.length) }].map(s => (
               <div key={s.l} className="text-center p-1.5 rounded-md bg-secondary">
                 <div className="font-mono text-xs font-semibold">{s.v}</div>
                 <div className="text-[8px] text-muted-foreground mt-0.5">{s.l}</div>
@@ -383,14 +595,14 @@ export default function Home() {
               <div className="flex items-center gap-2 mb-1.5">
                 <Badge variant="secondary" className="text-[9px]">{market.category}</Badge>
                 <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />{market.agentsTrading} agents trading
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />{market.agentsTrading > 0 ? `${market.agentsTrading} agents trading` : "Live"}
                 </span>
                 <span className="text-[10px] text-muted-foreground">· Closes {new Date(market.closeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
               </div>
               <h1 className="text-lg font-semibold font-display tracking-tight">{market.title}</h1>
               <div className="flex items-center gap-4 mt-1.5 text-[11px] text-muted-foreground">
-                <span className="font-mono">Vol ${(market.totalVolume/1e6).toFixed(1)}M</span>
-                <span className="font-mono">24h ${(market.volume24h/1000).toFixed(0)}K</span>
+                <span className="font-mono">Vol {market.totalVolume >= 1e6 ? `$${(market.totalVolume/1e6).toFixed(1)}M` : market.totalVolume >= 1e3 ? `$${(market.totalVolume/1000).toFixed(0)}K` : `$${market.totalVolume}`}</span>
+                <span className="font-mono">24h {market.volume24h >= 1e3 ? `$${(market.volume24h/1000).toFixed(0)}K` : `$${market.volume24h}`}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -414,14 +626,14 @@ export default function Home() {
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-5 space-y-4">
               <PriceChart />
-              <Orderbook />
+              <Orderbook orderbook={orderbook} />
             </div>
             <div className="col-span-4 space-y-4">
-              <TradeFeed />
-              <AgentLeaderboard selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
+              <TradeFeed trades={trades} />
+              <AgentLeaderboard agents={agents} selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
             </div>
             <div className="col-span-3">
-              <TradePanel />
+              <TradePanel market={market} />
             </div>
           </div>
         </ScrollArea>
