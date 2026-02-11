@@ -1,81 +1,442 @@
 "use client";
 
 import { useState } from "react";
-import Sidebar from "@/components/Sidebar";
-import MarketHeader from "@/components/MarketHeader";
-import PriceChart from "@/components/PriceChart";
-import Orderbook from "@/components/Orderbook";
-import TradePanel from "@/components/TradePanel";
-import AgentLeaderboard from "@/components/AgentLeaderboard";
-import TradeFeed from "@/components/TradeFeed";
-import AgentsView from "@/components/AgentsView";
-import PortfolioView from "@/components/PortfolioView";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { mockMarkets, mockAgents, mockTrades, mockOrderbook, priceHistory } from "@/lib/mock-data";
+
+function PriceChart() {
+  const prices = priceHistory.map(p => p.price);
+  const min = Math.min(...prices) - 0.02;
+  const max = Math.max(...prices) + 0.02;
+  const range = max - min;
+  const w = 400, h = 180;
+
+  const points = priceHistory.map((p, i) => ({
+    x: (i / (priceHistory.length - 1)) * w,
+    y: h - ((p.price - min) / range) * h,
+  }));
+
+  const pathD = points.reduce((acc, pt, i) => {
+    if (i === 0) return `M ${pt.x},${pt.y}`;
+    const prev = points[i - 1];
+    return `${acc} C ${prev.x + (pt.x - prev.x) / 3},${prev.y} ${pt.x - (pt.x - prev.x) / 3},${pt.y} ${pt.x},${pt.y}`;
+  }, "");
+  const areaD = `${pathD} L ${w},${h} L 0,${h} Z`;
+  const last = points[points.length - 1];
+  const lastPrice = prices[prices.length - 1];
+  const firstPrice = prices[0];
+  const isUp = lastPrice >= firstPrice;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground">YES Price</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="font-mono text-2xl font-bold">{(lastPrice * 100).toFixed(1)}¢</span>
+              <span className={`font-mono text-sm font-semibold ${isUp ? "text-[var(--green)]" : "text-[var(--red)]"}`}>
+                {isUp ? "+" : ""}{((lastPrice - firstPrice) * 100).toFixed(1)}¢ ({isUp ? "+" : ""}{(((lastPrice - firstPrice) / firstPrice) * 100).toFixed(1)}%)
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-0.5 bg-secondary rounded-lg p-0.5">
+            {["1H", "4H", "24H", "7D", "ALL"].map(tf => (
+              <Button key={tf} variant={tf === "24H" ? "default" : "ghost"} size="sm" className="h-7 px-2.5 text-[10px]">
+                {tf}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-44" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={isUp ? "var(--green)" : "var(--red)"} stopOpacity="0.15" />
+              <stop offset="100%" stopColor={isUp ? "var(--green)" : "var(--red)"} stopOpacity="0" />
+            </linearGradient>
+            <filter id="gl"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          {[0.25, 0.5, 0.75].map(p => <line key={p} x1="0" y1={h*p} x2={w} y2={h*p} stroke="var(--border)" strokeWidth="0.5"/>)}
+          <path d={areaD} fill="url(#cg)" />
+          <path d={pathD} fill="none" stroke={isUp ? "var(--green)" : "var(--red)"} strokeWidth="1.5" filter="url(#gl)" />
+          <circle cx={last.x} cy={last.y} r="3" fill={isUp ? "var(--green)" : "var(--red)"} />
+        </svg>
+        <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-1">
+          <span>48h ago</span><span>36h</span><span>24h</span><span>12h</span><span>Now</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Orderbook() {
+  const maxSize = Math.max(...mockOrderbook.bids.map(b => b.size), ...mockOrderbook.asks.map(a => a.size));
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm">Orderbook</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--cyan)] pulse-live" />
+            <span className="text-[10px] text-muted-foreground">Live</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-px">
+            <div className="flex justify-between text-[9px] text-muted-foreground uppercase tracking-wider px-2 mb-1"><span>Bid</span><span>Size</span></div>
+            {mockOrderbook.bids.map((b, i) => (
+              <div key={i} className="relative flex justify-between items-center text-xs py-1 px-2 rounded">
+                <div className="absolute inset-y-0 left-0 bg-[var(--green)]/8 rounded" style={{ width: `${(b.size/maxSize)*100}%` }} />
+                <span className="relative font-mono text-[var(--green)] text-[11px]">{(b.price*100).toFixed(0)}¢</span>
+                <span className="relative font-mono text-muted-foreground text-[11px]">{(b.size/1000).toFixed(1)}K</span>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-px">
+            <div className="flex justify-between text-[9px] text-muted-foreground uppercase tracking-wider px-2 mb-1"><span>Ask</span><span>Size</span></div>
+            {mockOrderbook.asks.map((a, i) => (
+              <div key={i} className="relative flex justify-between items-center text-xs py-1 px-2 rounded">
+                <div className="absolute inset-y-0 right-0 bg-[var(--red)]/8 rounded" style={{ width: `${(a.size/maxSize)*100}%` }} />
+                <span className="relative font-mono text-[var(--red)] text-[11px]">{(a.price*100).toFixed(0)}¢</span>
+                <span className="relative font-mono text-muted-foreground text-[11px]">{(a.size/1000).toFixed(1)}K</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <Separator className="my-2" />
+        <div className="flex justify-center gap-6 text-[10px]">
+          <span className="text-muted-foreground">Spread <span className="font-mono text-foreground ml-1">2¢</span></span>
+          <span className="text-muted-foreground">Mid <span className="font-mono text-foreground ml-1">72¢</span></span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TradeFeed() {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm">Live Trades</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--green)] opacity-40" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--green)]" />
+            </span>
+            <span className="text-[10px] text-muted-foreground">Real-time</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {mockTrades.map(t => (
+            <div key={t.id} className="p-3 rounded-lg bg-secondary/50 border border-border/50">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px]">{t.agentEmoji}</div>
+                  <span className="text-xs font-medium">{t.agentName}</span>
+                </div>
+                <span className="font-mono text-[10px] text-muted-foreground">{t.timestamp}</span>
+              </div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Badge variant={t.side === "YES" ? "default" : "destructive"} className="text-[10px] h-5">
+                  {t.side}
+                </Badge>
+                <span className="text-[11px] text-muted-foreground truncate">{t.market}</span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] mb-1.5">
+                <span className="font-mono">@ {(t.price*100).toFixed(0)}¢</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="font-mono text-muted-foreground">${t.amount.toLocaleString()}</span>
+              </div>
+              <div className="pl-3 border-l-2 border-border">
+                <p className="text-[11px] text-muted-foreground italic leading-relaxed">{t.reasoning}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AgentLeaderboard({ selectedAgent, onSelectAgent }: { selectedAgent: string | null; onSelectAgent: (id: string) => void }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm"><span className="gradient-text">Top Agents</span></CardTitle>
+          <Button variant="link" size="sm" className="text-[10px] h-auto p-0 text-[var(--blue)]">View TOP 100 →</Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-1">
+          {mockAgents.map(a => (
+            <button key={a.id} onClick={() => onSelectAgent(a.id)}
+              className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition-colors text-left ${selectedAgent === a.id ? "bg-accent" : "hover:bg-accent/50"}`}>
+              <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold font-mono border ${
+                a.rank === 1 ? "bg-[var(--yellow)]/10 text-[var(--yellow)] border-[var(--yellow)]/20" :
+                a.rank === 2 ? "bg-muted text-muted-foreground border-border" :
+                a.rank === 3 ? "bg-orange-400/10 text-orange-400 border-orange-400/20" :
+                "bg-secondary text-muted-foreground border-border"
+              }`}>{a.rank}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[13px] font-medium truncate">{a.name}</span>
+                  {a.streak >= 5 && <Badge variant="outline" className="text-[9px] h-4 px-1 text-[var(--yellow)] border-[var(--yellow)]/20">{a.streak}W</Badge>}
+                </div>
+                <div className="flex gap-3 mt-0.5 text-[10px] text-muted-foreground">
+                  <span>{a.totalTrades} trades</span>
+                  <span>{a.followers.toLocaleString()} followers</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono text-sm font-bold text-[var(--green)]">+{a.roi}%</div>
+                <div className="text-[9px] text-muted-foreground">ROI</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TradePanel() {
+  const [side, setSide] = useState<"YES" | "NO">("YES");
+  const [amount, setAmount] = useState("100");
+  const [orderType, setOrderType] = useState("market");
+  const price = side === "YES" ? 0.72 : 0.28;
+  const shares = Math.floor(Number(amount) / price);
+
+  return (
+    <Card className="sticky top-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Trade</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-2 p-1 bg-secondary rounded-lg">
+          <Button onClick={() => setSide("YES")} variant={side === "YES" ? "default" : "ghost"}
+            className={`h-10 font-semibold ${side === "YES" ? "bg-[var(--green)] text-black hover:bg-[var(--green)]/90 shadow-lg shadow-[var(--green)]/20" : ""}`}>
+            Yes · 72¢
+          </Button>
+          <Button onClick={() => setSide("NO")} variant={side === "NO" ? "default" : "ghost"}
+            className={`h-10 font-semibold ${side === "NO" ? "bg-[var(--red)] text-white hover:bg-[var(--red)]/90 shadow-lg shadow-[var(--red)]/20" : ""}`}>
+            No · 28¢
+          </Button>
+        </div>
+
+        <Tabs defaultValue="market" onValueChange={setOrderType}>
+          <TabsList className="w-full">
+            <TabsTrigger value="market" className="flex-1 text-[10px]">Market</TabsTrigger>
+            <TabsTrigger value="limit" className="flex-1 text-[10px]">Limit</TabsTrigger>
+            <TabsTrigger value="sl" className="flex-1 text-[10px]">Stop Loss</TabsTrigger>
+            <TabsTrigger value="tp" className="flex-1 text-[10px]">Take Profit</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div>
+          <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Amount (USDC)</label>
+          <Input type="text" value={amount} onChange={e => setAmount(e.target.value)} className="font-mono" />
+          <div className="flex gap-1.5 mt-2">
+            {["25", "50", "100", "500", "1000"].map(v => (
+              <Button key={v} variant={amount === v ? "secondary" : "ghost"} size="sm" onClick={() => setAmount(v)}
+                className="flex-1 font-mono text-[10px] h-7">${v}</Button>
+            ))}
+          </div>
+        </div>
+
+        {orderType !== "market" && (
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">
+              {orderType === "limit" ? "Limit Price" : orderType === "sl" ? "Trigger Price" : "Target Price"}
+            </label>
+            <Input type="text" placeholder="0¢" className="font-mono" />
+          </div>
+        )}
+
+        <div className="p-3 rounded-lg bg-secondary space-y-1.5">
+          <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Avg price</span><span className="font-mono">{(price*100).toFixed(0)}¢</span></div>
+          <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Shares</span><span className="font-mono">{shares.toLocaleString()}</span></div>
+          <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Max payout</span><span className="font-mono text-[var(--green)]">${shares.toLocaleString()}</span></div>
+        </div>
+
+        <Button className={`w-full h-11 font-bold ${
+          side === "YES" ? "bg-[var(--green)] text-black hover:bg-[var(--green)]/90" : "bg-[var(--red)] text-white hover:bg-[var(--red)]/90"
+        }`}>
+          {orderType === "market" ? `Buy ${side}` : orderType === "limit" ? `Place Limit ${side}` : orderType === "sl" ? "Set Stop Loss" : "Set Take Profit"}
+        </Button>
+
+        <Card className="border-[var(--purple)]/20 bg-[var(--purple)]/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-4 h-4 text-[var(--purple)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-xs font-semibold font-display">Copy Trading</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground mb-3">Auto-copy positions from top-performing AI agents.</p>
+            <Button variant="outline" className="w-full border-[var(--purple)]/20 text-[var(--purple)] hover:bg-[var(--purple)]/10 text-xs">Coming Soon</Button>
+          </CardContent>
+        </Card>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Home() {
   const [selectedMarket, setSelectedMarket] = useState("btc-100k-mar");
   const [activeTab, setActiveTab] = useState("markets");
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
 
+  const market = mockMarkets.find(m => m.id === selectedMarket) || mockMarkets[0];
+
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
-      <Sidebar
-        selectedMarket={selectedMarket}
-        onSelectMarket={(id) => { setSelectedMarket(id); setActiveTab("markets"); }}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-[var(--bg-primary)]">
-        
-        {activeTab === "markets" && (
-          <>
-            <MarketHeader marketId={selectedMarket} />
-            <div className="flex-1 overflow-y-auto p-5">
-              <div className="grid grid-cols-12 gap-5">
-                <div className="col-span-5 space-y-5">
-                  <PriceChart />
-                  <Orderbook />
-                </div>
-                <div className="col-span-4 space-y-5">
-                  <TradeFeed />
-                  <AgentLeaderboard onSelectAgent={setSelectedAgent} selectedAgent={selectedAgent} />
-                </div>
-                <div className="col-span-3">
-                  <TradePanel />
-                </div>
+      <aside className="w-[280px] border-r border-border flex flex-col h-full bg-sidebar">
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
+              <span className="font-bold text-sm text-black font-display">P</span>
+            </div>
+            <div>
+              <span className="text-sm font-semibold font-display">Presage</span>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />
+                <span className="text-[9px] text-muted-foreground">Solana Mainnet</span>
               </div>
             </div>
-          </>
-        )}
-
-        {activeTab === "agents" && (
-          <div className="flex-1 overflow-y-auto">
-            <AgentsView />
+            <Badge variant="outline" className="ml-auto text-[9px] text-[var(--green)] border-[var(--green)]/20">BETA</Badge>
           </div>
-        )}
+        </div>
 
-        {activeTab === "portfolio" && (
-          <div className="flex-1 overflow-y-auto">
-            <PortfolioView />
+        <div className="p-2 border-b border-border">
+          <Tabs defaultValue="markets" onValueChange={v => setActiveTab(v)}>
+            <TabsList className="w-full">
+              <TabsTrigger value="markets" className="flex-1 text-xs">Markets</TabsTrigger>
+              <TabsTrigger value="agents" className="flex-1 text-xs">Agents</TabsTrigger>
+              <TabsTrigger value="portfolio" className="flex-1 text-xs">Portfolio</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <div className="px-3 pt-3">
+          <Input placeholder="Search markets..." className="h-8 text-xs" />
+        </div>
+
+        <ScrollArea className="flex-1 px-2 py-2">
+          <div className="space-y-1">
+            {mockMarkets.map(m => (
+              <button key={m.id} onClick={() => { setSelectedMarket(m.id); setActiveTab("markets"); }}
+                className={`w-full text-left p-3 rounded-lg transition-colors ${selectedMarket === m.id ? "bg-accent border border-primary/20" : "hover:bg-accent/50 border border-transparent"}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <Badge variant="secondary" className="text-[9px] h-4">{m.category}</Badge>
+                  <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                    <span className="w-1 h-1 rounded-full bg-[var(--green)] pulse-live" />{m.agentsTrading}
+                  </span>
+                </div>
+                <p className="text-[12px] leading-snug font-medium mb-1.5">{m.title}</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-2">
+                    <span className="font-mono text-[11px] text-[var(--green)]">Y {(m.yesPrice*100).toFixed(0)}¢</span>
+                    <span className="font-mono text-[11px] text-[var(--red)]">N {(m.noPrice*100).toFixed(0)}¢</span>
+                  </div>
+                  <span className={`font-mono text-[11px] ${m.change24h >= 0 ? "text-[var(--green)]" : "text-[var(--red)]"}`}>
+                    {m.change24h >= 0 ? "+" : ""}{m.change24h}%
+                  </span>
+                </div>
+              </button>
+            ))}
           </div>
-        )}
+        </ScrollArea>
 
-        {/* Bottom Bar */}
-        <div className="border-t border-[var(--border)] px-5 py-2.5 flex items-center justify-between bg-[var(--bg-secondary)]">
-          <div className="flex items-center gap-5 text-[10px] text-[var(--text-tertiary)] font-inter">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)]" />
-              <span className="text-[var(--text-secondary)]">Connected</span>
-            </span>
+        <div className="p-3 border-t border-border">
+          <div className="grid grid-cols-3 gap-2">
+            {[{ l: "Volume", v: "$40M" }, { l: "Agents", v: "217" }, { l: "Markets", v: "6" }].map(s => (
+              <div key={s.l} className="text-center p-1.5 rounded-md bg-secondary">
+                <div className="font-mono text-xs font-semibold">{s.v}</div>
+                <div className="text-[8px] text-muted-foreground mt-0.5">{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Market header */}
+        <div className="px-6 py-4 border-b border-border bg-card">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Badge variant="secondary" className="text-[9px]">{market.category}</Badge>
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />{market.agentsTrading} agents trading
+                </span>
+                <span className="text-[10px] text-muted-foreground">· Closes {new Date(market.closeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              </div>
+              <h1 className="text-lg font-semibold font-display tracking-tight">{market.title}</h1>
+              <div className="flex items-center gap-4 mt-1.5 text-[11px] text-muted-foreground">
+                <span className="font-mono">Vol ${(market.totalVolume/1e6).toFixed(1)}M</span>
+                <span className="font-mono">24h ${(market.volume24h/1000).toFixed(0)}K</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-center px-4 py-2 rounded-lg bg-[var(--green-dim)] border border-[var(--green)]/10">
+                <div className="font-mono text-xl font-bold text-[var(--green)]">{(market.yesPrice*100).toFixed(0)}¢</div>
+                <div className="text-[9px] text-[var(--green)]/60 mt-0.5">YES</div>
+              </div>
+              <div className="text-center px-4 py-2 rounded-lg bg-[var(--red-dim)] border border-[var(--red)]/10">
+                <div className="font-mono text-xl font-bold text-[var(--red)]">{(market.noPrice*100).toFixed(0)}¢</div>
+                <div className="text-[9px] text-[var(--red)]/60 mt-0.5">NO</div>
+              </div>
+              <Badge variant="outline" className={`text-xs font-mono ${market.change24h >= 0 ? "text-[var(--green)] border-[var(--green)]/20" : "text-[var(--red)] border-[var(--red)]/20"}`}>
+                {market.change24h >= 0 ? "↑" : "↓"} {Math.abs(market.change24h)}%
+              </Badge>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-5 space-y-4">
+              <PriceChart />
+              <Orderbook />
+            </div>
+            <div className="col-span-4 space-y-4">
+              <TradeFeed />
+              <AgentLeaderboard selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
+            </div>
+            <div className="col-span-3">
+              <TradePanel />
+            </div>
+          </div>
+        </ScrollArea>
+
+        {/* Footer */}
+        <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card">
+          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />Connected</span>
             <span className="font-mono">Block #284,729,103</span>
             <span className="font-mono">42ms</span>
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-inter">
-            <span className="text-[var(--text-tertiary)]">Powered by</span>
-            <span className="font-semibold text-[var(--accent-cyan)] font-display">DFlow</span>
-            <span className="text-[var(--text-tertiary)]">on</span>
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="text-muted-foreground">Powered by</span>
+            <span className="font-semibold text-[var(--cyan)] font-display">DFlow</span>
+            <span className="text-muted-foreground">on</span>
             <span className="font-semibold gradient-text font-display">Solana</span>
           </div>
         </div>
