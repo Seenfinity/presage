@@ -15,10 +15,7 @@ export default function Sidebar({ selectedMarket, onSelectMarket, activeTab, onT
       {/* Logo */}
       <div className="p-5 border-b border-[var(--border)]">
         <div className="flex items-center gap-3">
-          <div className="relative w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-green)] via-[var(--accent-blue)] to-[var(--accent-purple)] opacity-90" />
-            <span className="relative font-bold text-base text-black" style={{ fontFamily: 'Space Grotesk' }}>P</span>
-          </div>
+          <img src="/logo.svg" alt="Presage" className="w-9 h-9" />
           <div>
             <span className="text-base font-semibold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>Presage</span>
             <div className="flex items-center gap-1.5 mt-0.5">

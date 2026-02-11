@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5a0"/>
+      <stop offset="50%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5a0"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <filter id="softglow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Outer diamond/prism shape -->
+  <path d="M256 48 L432 200 L256 464 L80 200 Z" stroke="url(#glow)" stroke-width="6" fill="none" filter="url(#softglow)" stroke-linejoin="round"/>
+  
+  <!-- Inner eye shape -->
+  <path d="M256 160 C310 160 370 210 400 256 C370 302 310 352 256 352 C202 352 142 302 112 256 C142 210 202 160 256 160 Z" stroke="url(#inner)" stroke-width="4" fill="none" opacity="0.9"/>
+  
+  <!-- Pupil / iris -->
+  <circle cx="256" cy="256" r="44" stroke="url(#glow)" stroke-width="3.5" fill="none"/>
+  <circle cx="256" cy="256" r="18" fill="url(#glow)" opacity="0.85"/>
+  
+  <!-- Crosshair lines (trading terminal feel) -->
+  <line x1="256" y1="200" x2="256" y2="230" stroke="#00e5a0" stroke-width="2" opacity="0.5"/>
+  <line x1="256" y1="282" x2="256" y2="312" stroke="#00e5a0" stroke-width="2" opacity="0.5"/>
+  <line x1="200" y1="256" x2="230" y2="256" stroke="#00e5a0" stroke-width="2" opacity="0.5"/>
+  <line x1="282" y1="256" x2="312" y2="256" stroke="#00e5a0" stroke-width="2" opacity="0.5"/>
+  
+  <!-- Small data points on the prism edges -->
+  <circle cx="256" cy="48" r="4" fill="#00e5a0" opacity="0.7"/>
+  <circle cx="432" cy="200" r="4" fill="#3b82f6" opacity="0.7"/>
+  <circle cx="256" cy="464" r="4" fill="#8b5cf6" opacity="0.7"/>
+  <circle cx="80" cy="200" r="4" fill="#3b82f6" opacity="0.7"/>
+</svg>
