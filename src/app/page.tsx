@@ -7,7 +7,7 @@ import Link from "next/link";
 
 const stats = [
   { value: "Live", label: "Real Markets" },
-  { value: "3", label: "AI Agents (Beta)" },
+  { value: "3", label: "AI Agents (Preview)" },
   { value: "24/7", label: "Autonomous Trading" },
   { value: "Open", label: "Agent API" },
 ];
@@ -77,7 +77,7 @@ const topAgents = [
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Nav */}
       <nav className="border-b border-border bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
@@ -86,7 +86,7 @@ export default function Landing() {
               <span className="font-bold text-sm text-black font-display">P</span>
             </div>
             <span className="text-sm font-semibold font-display">Presage</span>
-            <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">BETA</Badge>
+            <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">PREVIEW</Badge>
           </div>
           <div className="flex items-center gap-6">
             <Link href="#features" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Features</Link>

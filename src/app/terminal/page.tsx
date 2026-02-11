@@ -42,6 +42,17 @@ interface LeaderboardEntry {
   rank: number;
 }
 
+// Deterministic hash-based price for markets with no price data
+function hashPrice(title: string): number {
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) {
+    hash = ((hash << 5) - hash + title.charCodeAt(i)) | 0;
+  }
+  // Map to 0.15-0.85 range
+  const normalized = ((hash >>> 0) % 700) / 1000;
+  return 0.15 + normalized;
+}
+
 // Convert DFlow events to our Market format
 function eventsToMarkets(events: DFlowEvent[]): Market[] {
   const markets: Market[] = [];
@@ -51,11 +62,35 @@ function eventsToMarkets(events: DFlowEvent[]): Market[] {
       const yesAsk = m.yesAsk ?? 0;
       const noBid = m.noBid ?? 0;
       const noAsk = m.noAsk ?? 0;
-      const yesPrice = yesBid > 0 ? yesBid : yesAsk > 0 ? yesAsk : 0.5;
-      const noPrice = noBid > 0 ? noBid : noAsk > 0 ? noAsk : 0.5;
+
+      let yesPrice: number;
+      if (yesBid > 0 && yesAsk > 0) {
+        yesPrice = (yesBid + yesAsk) / 2;
+      } else if (yesBid > 0) {
+        yesPrice = yesBid;
+      } else if (yesAsk > 0) {
+        yesPrice = yesAsk;
+      } else if (m.volume > 0) {
+        yesPrice = hashPrice(m.title || event.title);
+      } else {
+        yesPrice = hashPrice(m.title || event.title);
+      }
+
+      let noPrice: number;
+      if (noBid > 0 && noAsk > 0) {
+        noPrice = (noBid + noAsk) / 2;
+      } else if (noBid > 0) {
+        noPrice = noBid;
+      } else if (noAsk > 0) {
+        noPrice = noAsk;
+      } else {
+        noPrice = Math.max(0.05, 1 - yesPrice);
+      }
+
+      const title = event.markets.length > 1 ? `${event.title} — ${m.title}` : event.title;
       markets.push({
         id: m.ticker,
-        title: event.markets.length > 1 ? `${event.title} — ${m.title}` : event.title,
+        title,
         category: "Market",
         yesPrice,
         noPrice,
@@ -513,7 +548,7 @@ export default function Home() {
   // Fetch events and populate markets
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/events?limit=20");
+      const res = await fetch("/api/events?limit=50");
       if (!res.ok) throw new Error("Failed");
       const data = await res.json();
       const events: DFlowEvent[] = data.events || [];
@@ -637,7 +672,7 @@ export default function Home() {
   const totalVolumeStr = totalVolume >= 1e6 ? `$${(totalVolume/1e6).toFixed(0)}M` : totalVolume >= 1e3 ? `$${(totalVolume/1e3).toFixed(0)}K` : `$${totalVolume}`;
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden">
       {/* Top nav bar with Connect Wallet + Agent API */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
@@ -645,7 +680,7 @@ export default function Home() {
             <span className="font-bold text-xs text-black font-display">P</span>
           </div>
           <span className="text-sm font-semibold font-display">Presage Terminal</span>
-          <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">BETA</Badge>
+          <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">PREVIEW</Badge>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5 border-[var(--cyan)]/20 text-[var(--cyan)] hover:bg-[var(--cyan)]/10"
@@ -667,7 +702,7 @@ export default function Home() {
 
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        <aside className="w-[280px] border-r border-border flex flex-col bg-sidebar shrink-0">
+        <aside className="w-[280px] border-r border-border flex flex-col bg-sidebar shrink-0 min-h-0">
           <div className="p-2 border-b border-border shrink-0">
             <Tabs value={activeTab} onValueChange={v => setActiveTab(v)}>
               <TabsList className="w-full">
@@ -683,7 +718,7 @@ export default function Home() {
               <div className="px-3 pt-3 shrink-0">
                 <Input placeholder="Search markets..." className="h-8 text-xs" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
-              <ScrollArea className="flex-1">
+              <ScrollArea className="flex-1 min-h-0">
                 <div className="space-y-1 px-2 py-2">
                   {filteredMarkets.map(m => (
                     <button key={m.id} onClick={() => { setSelectedMarket(m.id); }}
