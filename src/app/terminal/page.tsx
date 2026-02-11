@@ -702,7 +702,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0">
         {/* Mobile market selector bar */}
         <div className="md:hidden border-b border-border bg-card px-3 py-2 shrink-0">
           <select
