@@ -7,28 +7,31 @@ export default function TradePanel() {
   const [amount, setAmount] = useState("100");
   const [orderType, setOrderType] = useState<"market" | "limit" | "sl" | "tp">("market");
 
+  const price = side === "YES" ? 0.72 : 0.28;
+  const shares = Math.floor(Number(amount) / price);
+
   return (
-    <div className="card p-4">
-      <h3 className="text-sm font-medium mb-3">Trade</h3>
+    <div className="glass-card p-5 sticky top-4">
+      <h3 className="text-sm font-semibold mb-4" style={{ fontFamily: 'Space Grotesk' }}>Trade</h3>
 
       {/* Side selection */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-2 gap-2 mb-4">
         <button
           onClick={() => setSide("YES")}
-          className={`py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             side === "YES"
-              ? "bg-[var(--accent-green)] text-black"
-              : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              ? "bg-[var(--accent-green)] text-black shadow-lg shadow-[var(--accent-green)]/20"
+              : "bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--accent-green)]/30 hover:text-[var(--accent-green)]"
           }`}
         >
           YES 72¢
         </button>
         <button
           onClick={() => setSide("NO")}
-          className={`py-2 rounded-lg text-sm font-medium transition-all ${
+          className={`py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             side === "NO"
-              ? "bg-[var(--accent-red)] text-white"
-              : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              ? "bg-[var(--accent-red)] text-white shadow-lg shadow-[var(--accent-red)]/20"
+              : "bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--accent-red)]/30 hover:text-[var(--accent-red)]"
           }`}
         >
           NO 28¢
@@ -36,7 +39,7 @@ export default function TradePanel() {
       </div>
 
       {/* Order type */}
-      <div className="flex gap-1 mb-3 p-0.5 bg-[var(--bg-primary)] rounded-lg">
+      <div className="flex gap-0.5 mb-4 p-0.5 bg-[var(--bg-primary)] rounded-xl">
         {[
           { key: "market", label: "Market" },
           { key: "limit", label: "Limit" },
@@ -46,10 +49,10 @@ export default function TradePanel() {
           <button
             key={type.key}
             onClick={() => setOrderType(type.key as typeof orderType)}
-            className={`flex-1 text-[10px] py-1.5 rounded-md transition-colors ${
+            className={`flex-1 text-[10px] py-2 rounded-lg font-medium transition-all duration-200 ${
               orderType === type.key
-                ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm"
+                : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             }`}
           >
             {type.label}
@@ -58,20 +61,24 @@ export default function TradePanel() {
       </div>
 
       {/* Amount */}
-      <div className="mb-3">
-        <label className="text-[10px] text-[var(--text-secondary)] mb-1 block">Amount (USDC)</label>
+      <div className="mb-4">
+        <label className="text-[10px] text-[var(--text-secondary)] mb-2 block uppercase tracking-wider">Amount (USDC)</label>
         <input
           type="text"
           value={amount}
           onChange={e => setAmount(e.target.value)}
-          className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)]"
+          className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-4 py-3 mono text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)]/40 transition-colors"
         />
-        <div className="flex gap-1 mt-1">
-          {["25", "50", "100", "500"].map(v => (
+        <div className="flex gap-1.5 mt-2">
+          {["25", "50", "100", "500", "1000"].map(v => (
             <button
               key={v}
               onClick={() => setAmount(v)}
-              className="flex-1 text-[10px] py-1 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className={`flex-1 mono text-[10px] py-1.5 rounded-lg transition-all duration-200 ${
+                amount === v
+                  ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border)]"
+                  : "bg-[var(--bg-primary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+              }`}
             >
               ${v}
             </button>
@@ -79,44 +86,42 @@ export default function TradePanel() {
         </div>
       </div>
 
-      {/* Limit price (conditional) */}
+      {/* Conditional price input */}
       {orderType !== "market" && (
-        <div className="mb-3">
-          <label className="text-[10px] text-[var(--text-secondary)] mb-1 block">
-            {orderType === "limit" ? "Limit Price" : orderType === "sl" ? "Stop Loss Price" : "Take Profit Price"}
+        <div className="mb-4">
+          <label className="text-[10px] text-[var(--text-secondary)] mb-2 block uppercase tracking-wider">
+            {orderType === "limit" ? "Limit Price" : orderType === "sl" ? "Trigger Price" : "Target Price"}
           </label>
           <input
             type="text"
-            placeholder="0.00¢"
-            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)]"
+            placeholder="0¢"
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl px-4 py-3 mono text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)]/40 transition-colors"
           />
         </div>
       )}
 
       {/* Summary */}
-      <div className="p-2 rounded-lg bg-[var(--bg-primary)] mb-3 text-[10px] space-y-1">
-        <div className="flex justify-between">
-          <span className="text-[var(--text-secondary)]">Avg price</span>
-          <span>{side === "YES" ? "72¢" : "28¢"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[var(--text-secondary)]">Shares</span>
-          <span>{Math.floor(Number(amount) / (side === "YES" ? 0.72 : 0.28))}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-[var(--text-secondary)]">Potential payout</span>
-          <span className="text-[var(--accent-green)]">
-            ${Math.floor(Number(amount) / (side === "YES" ? 0.72 : 0.28)).toLocaleString()}
-          </span>
-        </div>
+      <div className="p-3 rounded-xl bg-[var(--bg-primary)] mb-4 space-y-2">
+        {[
+          { label: "Avg price", value: `${(price * 100).toFixed(0)}¢` },
+          { label: "Shares", value: shares.toLocaleString() },
+          { label: "Max payout", value: `$${shares.toLocaleString()}`, highlight: true },
+        ].map(row => (
+          <div key={row.label} className="flex justify-between text-[11px]">
+            <span className="text-[var(--text-tertiary)]">{row.label}</span>
+            <span className={`mono font-medium ${row.highlight ? "text-[var(--accent-green)]" : "text-[var(--text-primary)]"}`}>
+              {row.value}
+            </span>
+          </div>
+        ))}
       </div>
 
       {/* Submit */}
       <button
-        className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all ${
+        className={`w-full py-3 rounded-xl text-sm font-bold transition-all duration-200 ${
           side === "YES"
-            ? "bg-[var(--accent-green)] hover:bg-[var(--accent-green)]/90 text-black"
-            : "bg-[var(--accent-red)] hover:bg-[var(--accent-red)]/90 text-white"
+            ? "bg-[var(--accent-green)] hover:shadow-lg hover:shadow-[var(--accent-green)]/20 text-black"
+            : "bg-[var(--accent-red)] hover:shadow-lg hover:shadow-[var(--accent-red)]/20 text-white"
         }`}
       >
         {orderType === "market" ? `Buy ${side}` : 
@@ -124,13 +129,16 @@ export default function TradePanel() {
          orderType === "sl" ? `Set Stop Loss` : `Set Take Profit`}
       </button>
 
-      {/* Copy trading CTA */}
-      <div className="mt-3 p-2 rounded-lg border border-[var(--accent-purple)]/20 bg-[var(--accent-purple)]/5">
-        <p className="text-[10px] text-[var(--accent-purple)] font-medium mb-1">🤖 Copy Trading</p>
-        <p className="text-[10px] text-[var(--text-secondary)]">
-          Auto-copy trades from top agents. Subscribe to unlock.
+      {/* Copy Trading CTA */}
+      <div className="mt-5 p-4 rounded-xl border border-[var(--accent-purple)]/15 bg-gradient-to-b from-[var(--accent-purple)]/5 to-transparent">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-base">🤖</span>
+          <span className="text-xs font-semibold" style={{ fontFamily: 'Space Grotesk' }}>Copy Trading</span>
+        </div>
+        <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed mb-3">
+          Auto-copy positions from top-performing AI agents. Let the best algorithms trade for you.
         </p>
-        <button className="mt-1.5 text-[10px] px-2 py-1 rounded bg-[var(--accent-purple)] text-white hover:bg-[var(--accent-purple)]/90">
+        <button className="w-full py-2.5 rounded-xl text-xs font-semibold bg-[var(--accent-purple)] text-white hover:shadow-lg hover:shadow-[var(--accent-purple)]/20 transition-all duration-200">
           Subscribe — $29/mo
         </button>
       </div>

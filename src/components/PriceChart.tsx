@@ -7,42 +7,55 @@ export default function PriceChart() {
   const min = Math.min(...prices) - 0.02;
   const max = Math.max(...prices) + 0.02;
   const range = max - min;
-  const w = 100;
-  const h = 100;
+  const w = 400;
+  const h = 200;
 
   const points = priceHistory.map((p, i) => {
     const x = (i / (priceHistory.length - 1)) * w;
     const y = h - ((p.price - min) / range) * h;
-    return `${x},${y}`;
+    return { x, y };
   });
 
-  const pathD = `M ${points.join(" L ")}`;
+  // Smooth curve using cubic bezier
+  const pathD = points.reduce((acc, point, i) => {
+    if (i === 0) return `M ${point.x},${point.y}`;
+    const prev = points[i - 1];
+    const cpx1 = prev.x + (point.x - prev.x) / 3;
+    const cpx2 = point.x - (point.x - prev.x) / 3;
+    return `${acc} C ${cpx1},${prev.y} ${cpx2},${point.y} ${point.x},${point.y}`;
+  }, "");
+
   const areaD = `${pathD} L ${w},${h} L 0,${h} Z`;
 
   const lastPrice = prices[prices.length - 1];
   const firstPrice = prices[0];
   const isUp = lastPrice >= firstPrice;
+  const priceLevels = [0.25, 0.5, 0.75].map(pct => ({
+    y: h * pct,
+    label: (max - (max - min) * pct).toFixed(2),
+  }));
 
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between mb-3">
+    <div className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm text-[var(--text-secondary)]">YES Price</h3>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold">{(lastPrice * 100).toFixed(1)}¢</span>
-            <span className={`text-sm font-medium ${isUp ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>
-              {isUp ? "↑" : "↓"} {(Math.abs(lastPrice - firstPrice) * 100).toFixed(1)}¢
+          <p className="text-[11px] text-[var(--text-secondary)] mb-1">YES Price</p>
+          <div className="flex items-baseline gap-2.5">
+            <span className="mono text-3xl font-bold tracking-tight">{(lastPrice * 100).toFixed(1)}¢</span>
+            <span className={`mono text-sm font-semibold ${isUp ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>
+              {isUp ? "+" : ""}{((lastPrice - firstPrice) * 100).toFixed(1)}¢
+              <span className="text-xs ml-1">({isUp ? "+" : ""}{(((lastPrice - firstPrice) / firstPrice) * 100).toFixed(1)}%)</span>
             </span>
           </div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-0.5 p-0.5 bg-[var(--bg-primary)] rounded-lg">
           {["1H", "4H", "24H", "7D", "ALL"].map(tf => (
             <button
               key={tf}
-              className={`text-[10px] px-2 py-1 rounded ${
+              className={`text-[10px] px-3 py-1.5 rounded-md font-medium transition-all duration-200 ${
                 tf === "24H"
-                  ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
               }`}
             >
               {tf}
@@ -51,37 +64,66 @@ export default function PriceChart() {
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={isUp ? "var(--accent-green)" : "var(--accent-red)"} stopOpacity="0.2" />
-            <stop offset="100%" stopColor={isUp ? "var(--accent-green)" : "var(--accent-red)"} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {/* Grid lines */}
-        {[0.25, 0.5, 0.75].map(pct => (
-          <line
-            key={pct}
-            x1="0" y1={h * pct} x2={w} y2={h * pct}
-            stroke="var(--border)" strokeWidth="0.3" strokeDasharray="1,2"
-          />
-        ))}
-        <path d={areaD} fill="url(#chartGrad)" />
-        <path d={pathD} fill="none" stroke={isUp ? "var(--accent-green)" : "var(--accent-red)"} strokeWidth="0.8" />
-        {/* Current price dot */}
-        <circle
-          cx={w}
-          cy={h - ((lastPrice - min) / range) * h}
-          r="1.5"
-          fill={isUp ? "var(--accent-green)" : "var(--accent-red)"}
-          className="pulse-dot"
-        />
-      </svg>
+      <div className="relative">
+        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-56" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={isUp ? "var(--accent-green)" : "var(--accent-red)"} stopOpacity="0.15" />
+              <stop offset="50%" stopColor={isUp ? "var(--accent-green)" : "var(--accent-red)"} stopOpacity="0.05" />
+              <stop offset="100%" stopColor={isUp ? "var(--accent-green)" : "var(--accent-red)"} stopOpacity="0" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
 
-      {/* Price labels */}
-      <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mt-1">
+          {/* Grid */}
+          {priceLevels.map((level, i) => (
+            <g key={i}>
+              <line x1="0" y1={level.y} x2={w} y2={level.y} stroke="var(--border)" strokeWidth="0.5" />
+              <text x={w - 2} y={level.y - 4} textAnchor="end" fill="var(--text-tertiary)" fontSize="8" fontFamily="JetBrains Mono">
+                {(Number(level.label) * 100).toFixed(0)}¢
+              </text>
+            </g>
+          ))}
+
+          {/* Area fill */}
+          <path d={areaD} fill="url(#chartGrad)" />
+
+          {/* Line */}
+          <path d={pathD} fill="none" stroke={isUp ? "var(--accent-green)" : "var(--accent-red)"} strokeWidth="1.5" filter="url(#glow)" />
+
+          {/* Current price indicator */}
+          <circle
+            cx={points[points.length - 1].x}
+            cy={points[points.length - 1].y}
+            r="3"
+            fill={isUp ? "var(--accent-green)" : "var(--accent-red)"}
+            className="pulse-live"
+          />
+          <circle
+            cx={points[points.length - 1].x}
+            cy={points[points.length - 1].y}
+            r="6"
+            fill="none"
+            stroke={isUp ? "var(--accent-green)" : "var(--accent-red)"}
+            strokeWidth="0.5"
+            opacity="0.4"
+            className="pulse-live"
+          />
+        </svg>
+      </div>
+
+      {/* Time labels */}
+      <div className="flex justify-between text-[10px] text-[var(--text-tertiary)] mt-2 mono">
         <span>48h ago</span>
-        <span>24h ago</span>
+        <span>36h</span>
+        <span>24h</span>
+        <span>12h</span>
         <span>Now</span>
       </div>
     </div>

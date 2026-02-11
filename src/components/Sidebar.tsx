@@ -1,6 +1,6 @@
 "use client";
 
-import { mockMarkets, type Market } from "@/lib/mock-data";
+import { mockMarkets } from "@/lib/mock-data";
 
 interface SidebarProps {
   selectedMarket: string;
@@ -10,92 +10,111 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ selectedMarket, onSelectMarket, activeTab, onTabChange }: SidebarProps) {
-  const categories = ["All", ...Array.from(new Set(mockMarkets.map(m => m.category)))];
-
   return (
-    <aside className="w-72 border-r border-[var(--border)] flex flex-col h-full bg-[var(--bg-secondary)]">
+    <aside className="w-[300px] border-r border-[var(--border)] flex flex-col h-full bg-[var(--bg-secondary)]">
       {/* Logo */}
-      <div className="p-4 border-b border-[var(--border)]">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent-green)] to-[var(--accent-blue)] flex items-center justify-center font-bold text-sm text-black">
-            P
+      <div className="p-5 border-b border-[var(--border)]">
+        <div className="flex items-center gap-3">
+          <div className="relative w-9 h-9 rounded-xl flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-green)] via-[var(--accent-blue)] to-[var(--accent-purple)] opacity-90" />
+            <span className="relative font-bold text-base text-black" style={{ fontFamily: 'Space Grotesk' }}>P</span>
           </div>
-          <span className="text-lg font-semibold tracking-tight">Presage</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent-green)]/10 text-[var(--accent-green)] font-medium ml-auto">BETA</span>
+          <div>
+            <span className="text-base font-semibold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>Presage</span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] pulse-live" />
+              <span className="text-[10px] text-[var(--text-secondary)]">Live on Solana</span>
+            </div>
+          </div>
+          <span className="tag bg-[var(--accent-green)]/10 text-[var(--accent-green)] ml-auto">Beta</span>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex gap-1 p-2 border-b border-[var(--border)]">
-        {["Markets", "Agents", "Portfolio"].map(tab => (
-          <button
-            key={tab}
-            onClick={() => onTabChange(tab.toLowerCase())}
-            className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${
-              activeTab === tab.toLowerCase()
-                ? "bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </nav>
-
-      {/* Markets list */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-2 space-y-1">
-          {mockMarkets.map(market => (
+      {/* Nav tabs */}
+      <div className="p-3 border-b border-[var(--border)]">
+        <div className="flex gap-1 p-1 bg-[var(--bg-primary)] rounded-xl">
+          {["Markets", "Agents", "Portfolio"].map(tab => (
             <button
-              key={market.id}
-              onClick={() => onSelectMarket(market.id)}
-              className={`w-full text-left p-3 rounded-lg transition-all ${
-                selectedMarket === market.id
-                  ? "bg-[var(--bg-tertiary)] border border-[var(--accent-blue)]/30"
-                  : "hover:bg-[var(--bg-tertiary)]/50 border border-transparent"
+              key={tab}
+              onClick={() => onTabChange(tab.toLowerCase())}
+              className={`flex-1 text-xs py-2 rounded-lg font-medium transition-all duration-200 ${
+                activeTab === tab.toLowerCase()
+                  ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
-                  {market.category}
-                </span>
-                <span className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] pulse-dot" />
-                  {market.agentsTrading} agents
-                </span>
-              </div>
-              <p className="text-sm leading-snug mb-2">{market.title}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <span className="text-xs font-medium text-[var(--accent-green)]">
-                    YES {(market.yesPrice * 100).toFixed(0)}¢
-                  </span>
-                  <span className="text-xs font-medium text-[var(--accent-red)]">
-                    NO {(market.noPrice * 100).toFixed(0)}¢
-                  </span>
-                </div>
-                <span className={`text-xs font-medium ${market.change24h >= 0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>
-                  {market.change24h >= 0 ? "+" : ""}{market.change24h}%
-                </span>
-              </div>
+              {tab}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Search */}
+      <div className="px-3 pt-3">
+        <div className="relative">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search markets..."
+            className="w-full bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl pl-9 pr-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent-blue)]/40 transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* Markets list */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        {mockMarkets.map(market => (
+          <button
+            key={market.id}
+            onClick={() => onSelectMarket(market.id)}
+            className={`w-full text-left p-3.5 rounded-xl transition-all duration-200 ${
+              selectedMarket === market.id
+                ? "bg-[var(--bg-elevated)] border border-[var(--accent-blue)]/20 glow-brand"
+                : "hover:bg-[var(--bg-tertiary)] border border-transparent"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="tag bg-[var(--bg-primary)] text-[var(--text-secondary)]">
+                {market.category}
+              </span>
+              <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] pulse-live" />
+                {market.agentsTrading} agents
+              </span>
+            </div>
+            <p className="text-[13px] leading-snug font-medium mb-2.5">{market.title}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex gap-3">
+                <span className="mono text-xs font-medium text-[var(--accent-green)]">
+                  YES {(market.yesPrice * 100).toFixed(0)}¢
+                </span>
+                <span className="mono text-xs font-medium text-[var(--accent-red)]">
+                  NO {(market.noPrice * 100).toFixed(0)}¢
+                </span>
+              </div>
+              <span className={`mono text-xs font-medium ${market.change24h >= 0 ? "text-[var(--accent-green)]" : "text-[var(--accent-red)]"}`}>
+                {market.change24h >= 0 ? "+" : ""}{market.change24h}%
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+
       {/* Bottom stats */}
-      <div className="p-3 border-t border-[var(--border)] text-[10px] text-[var(--text-secondary)]">
-        <div className="flex justify-between">
-          <span>Total Volume</span>
-          <span className="text-[var(--text-primary)]">$40.0M</span>
-        </div>
-        <div className="flex justify-between mt-1">
-          <span>Active Agents</span>
-          <span className="text-[var(--text-primary)]">217</span>
-        </div>
-        <div className="flex justify-between mt-1">
-          <span>Markets</span>
-          <span className="text-[var(--text-primary)]">{mockMarkets.length} live</span>
+      <div className="p-4 border-t border-[var(--border)]">
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "Volume", value: "$40M" },
+            { label: "Agents", value: "217" },
+            { label: "Markets", value: `${mockMarkets.length}` },
+          ].map(stat => (
+            <div key={stat.label} className="text-center p-2 rounded-lg bg-[var(--bg-primary)]">
+              <div className="mono text-sm font-semibold">{stat.value}</div>
+              <div className="text-[9px] text-[var(--text-secondary)] mt-0.5">{stat.label}</div>
+            </div>
+          ))}
         </div>
       </div>
     </aside>
