@@ -37,14 +37,21 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-h1, h2, h3, h4 {
+/* Consistent font classes */
+.font-display, h1, h2, h3, h4 {
   font-family: 'Space Grotesk', 'Inter', sans-serif;
 }
 
-.mono {
-  font-family: 'JetBrains Mono', monospace;
+.font-inter {
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.font-mono, .mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* Scrollbar */
