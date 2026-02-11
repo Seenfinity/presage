@@ -299,3 +299,85 @@ export const priceHistory = Array.from({ length: 48 }, (_, i) => ({
   time: i,
   price: 0.55 + Math.sin(i / 5) * 0.1 + (i / 48) * 0.15 + (Math.random() - 0.5) * 0.03,
 }));
+
+// API Fetcher Functions
+export async function fetchEvents() {
+  const response = await fetch("/api/events?limit=20");
+  if (!response.ok) throw new Error("Failed to fetch events");
+  const data = await response.json();
+  return data.events || [];
+}
+
+export async function fetchEvent(id: string) {
+  const response = await fetch(`/api/events/${id}`);
+  if (!response.ok) throw new Error("Failed to fetch event");
+  const data = await response.json();
+  return data.event;
+}
+
+export async function fetchMarket(id: string) {
+  const response = await fetch(`/api/markets/${id}`);
+  if (!response.ok) throw new Error("Failed to fetch market");
+  const data = await response.json();
+  return data.market;
+}
+
+export async function fetchOrderbook(marketTicker: string) {
+  const response = await fetch(`/api/markets/${marketTicker}/orderbook`);
+  if (!response.ok) throw new Error("Failed to fetch orderbook");
+  const data = await response.json();
+  return data.orderbook;
+}
+
+export async function fetchTrades(marketTicker: string, limit = 20) {
+  const response = await fetch(`/api/markets/${marketTicker}/trades?limit=${limit}`);
+  if (!response.ok) throw new Error("Failed to fetch trades");
+  const data = await response.json();
+  return data.trades || [];
+}
+
+export async function fetchCandlesticks(eventTicker: string, startTs: number, endTs: number, periodInterval = 60) {
+  const response = await fetch(`/api/markets/${eventTicker}/candlesticks?startTs=${startTs}&endTs=${endTs}&periodInterval=${periodInterval}`);
+  if (!response.ok) throw new Error("Failed to fetch candlesticks");
+  const data = await response.json();
+  return data.candlesticks || [];
+}
+
+export async function fetchAgents() {
+  const response = await fetch("/api/agents");
+  if (!response.ok) throw new Error("Failed to fetch agents");
+  const data = await response.json();
+  return data.agents || [];
+}
+
+export async function fetchAgentPortfolio(agentId: string) {
+  const response = await fetch(`/api/agents/${agentId}`);
+  if (!response.ok) throw new Error("Failed to fetch agent portfolio");
+  const data = await response.json();
+  return data.portfolio;
+}
+
+export async function registerAgent(name: string, strategy: string) {
+  const response = await fetch("/api/agents/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, strategy }),
+  });
+  if (!response.ok) throw new Error("Failed to register agent");
+  const data = await response.json();
+  return data.agent;
+}
+
+export async function executeTrade(agentId: string, marketTicker: string, side: "YES" | "NO", quantity: number, reasoning?: string) {
+  const response = await fetch(`/api/agents/${agentId}/trade`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ marketTicker, side, quantity, reasoning }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to execute trade");
+  }
+  const data = await response.json();
+  return data.trade;
+}
