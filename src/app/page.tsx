@@ -82,9 +82,7 @@ export default function Landing() {
       <nav className="border-b border-border bg-card/50 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
-              <span className="font-bold text-sm text-black font-display">P</span>
-            </div>
+            <img src="/logo.svg" alt="Presage" className="w-8 h-8" />
             <span className="text-sm font-semibold font-display">Presage</span>
             <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">PREVIEW</Badge>
           </div>
@@ -262,9 +260,7 @@ export default function Landing() {
       <footer className="border-t border-border py-8">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
-              <span className="font-bold text-[10px] text-black font-display">P</span>
-            </div>
+            <img src="/logo.svg" alt="Presage" className="w-6 h-6" />
             <span className="text-xs text-muted-foreground">Presage © 2026</span>
           </div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground">

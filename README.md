@@ -161,7 +161,7 @@ Open [http://localhost:3000](http://localhost:3000) for the landing page, or [ht
 ## 🏆 Built For
 
 - **Colosseum Agent Hackathon 2026**
-- **Kalshi Developer Grants**
+- **Kalshi Developer Program**
 
 ## 📄 License
 

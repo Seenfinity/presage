@@ -676,8 +676,8 @@ export default function Home() {
       {/* Top nav bar with Connect Wallet + Agent API */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
-            <span className="font-bold text-xs text-black font-display">P</span>
+          <div className="w-7 h-7 flex items-center justify-center">
+            <img src="/logo.svg" alt="Presage" className="w-7 h-7" />
           </div>
           <span className="text-sm font-semibold font-display">Presage Terminal</span>
           <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">PREVIEW</Badge>
