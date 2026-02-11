@@ -472,7 +472,7 @@ function PortfolioView({ onConnectWallet }: { onConnectWallet: () => void }) {
 function AgentApiModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <Card className="w-[520px] max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <Card className="w-[95vw] sm:w-[520px] max-h-[80vh] overflow-y-auto mx-4" onClick={e => e.stopPropagation()}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">🤖 Agent API Integration</CardTitle>
@@ -675,15 +675,16 @@ export default function Home() {
     <div className="flex h-screen flex-col overflow-hidden">
       {/* Top nav bar with Connect Wallet + Agent API */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 flex items-center justify-center">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-7 h-7 flex items-center justify-center shrink-0">
             <img src="/logo.svg" alt="Presage" className="w-7 h-7" />
           </div>
-          <span className="text-sm font-semibold font-display">Presage Terminal</span>
-          <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">PREVIEW</Badge>
+          <span className="text-sm font-semibold font-display hidden sm:inline">Presage Terminal</span>
+          <span className="text-sm font-semibold font-display sm:hidden">Presage</span>
+          <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20 hidden sm:inline-flex">PREVIEW</Badge>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5 border-[var(--cyan)]/20 text-[var(--cyan)] hover:bg-[var(--cyan)]/10"
+          <Button variant="outline" size="sm" className="text-xs h-8 gap-1.5 border-[var(--cyan)]/20 text-[var(--cyan)] hover:bg-[var(--cyan)]/10 hidden sm:flex"
             onClick={() => setShowAgentApi(true)}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
@@ -695,14 +696,30 @@ export default function Home() {
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
             </svg>
-            Connect Wallet
+            <span className="hidden sm:inline">Connect Wallet</span>
+            <span className="sm:hidden">Connect</span>
           </Button>
         </div>
       </header>
 
       <div className="flex flex-1 min-h-0">
+        {/* Mobile market selector bar */}
+        <div className="md:hidden border-b border-border bg-card px-3 py-2 shrink-0">
+          <select
+            value={selectedMarket}
+            onChange={e => setSelectedMarket(e.target.value)}
+            className="w-full h-9 text-xs bg-secondary border border-border rounded-lg px-2 font-medium truncate"
+          >
+            {markets.map(m => (
+              <option key={m.id} value={m.id}>
+                {m.title} — Y {(m.yesPrice*100).toFixed(0)}¢ / N {(m.noPrice*100).toFixed(0)}¢
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Sidebar */}
-        <aside className="w-[280px] border-r border-border flex flex-col bg-sidebar shrink-0 min-h-0">
+        <aside className="w-[280px] border-r border-border hidden md:flex flex-col bg-sidebar shrink-0 min-h-0">
           <div className="p-2 border-b border-border shrink-0">
             <Tabs value={activeTab} onValueChange={v => setActiveTab(v)}>
               <TabsList className="w-full">
@@ -777,9 +794,9 @@ export default function Home() {
         {/* Main */}
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Market header */}
-          <div className="px-6 py-4 border-b border-border bg-card shrink-0">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 flex-1 mr-4">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-card shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-0">
+              <div className="min-w-0 flex-1 sm:mr-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Badge variant="secondary" className="text-[9px]">{market.category}</Badge>
                   <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -793,7 +810,7 @@ export default function Home() {
                   <span className="font-mono">24h {market.volume24h >= 1e3 ? `$${(market.volume24h/1000).toFixed(0)}K` : `$${market.volume24h}`}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-3 shrink-0 self-start">
                 <div className="text-center px-4 py-2 rounded-lg bg-[var(--green-dim)] border border-[var(--green)]/10">
                   <div className="font-mono text-xl font-bold text-[var(--green)]">{(market.yesPrice*100).toFixed(0)}¢</div>
                   <div className="text-[9px] text-[var(--green)]/60 mt-0.5">YES</div>
@@ -807,28 +824,28 @@ export default function Home() {
           </div>
 
           {/* Content - scrollable */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid grid-cols-12 gap-4">
-              <div className="col-span-5 space-y-4">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <div className="md:col-span-5 space-y-4">
                 <PriceChart />
                 <Orderbook orderbook={orderbook} />
               </div>
-              <div className="col-span-4 space-y-4">
+              <div className="md:col-span-4 space-y-4">
                 <TradeFeed trades={trades} />
                 <AgentLeaderboard agents={agents} selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
               </div>
-              <div className="col-span-3">
+              <div className="md:col-span-3">
                 <TradePanel market={market} onTrade={showToast} />
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card shrink-0">
-            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+          <div className="border-t border-border px-3 sm:px-4 py-2 flex items-center justify-between bg-card shrink-0">
+            <div className="flex items-center gap-2 sm:gap-4 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />Connected</span>
-              <span className="font-mono">Block #284,729,103</span>
-              <span className="font-mono">42ms</span>
+              <span className="font-mono hidden sm:inline">Block #284,729,103</span>
+              <span className="font-mono hidden sm:inline">42ms</span>
               {usingRealData && <Badge variant="outline" className="text-[8px] h-4 text-[var(--green)] border-[var(--green)]/20">LIVE DATA</Badge>}
             </div>
             <div className="flex items-center gap-2 text-[10px]">
