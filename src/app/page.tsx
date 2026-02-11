@@ -1,446 +1,280 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { mockMarkets, mockAgents, mockTrades, mockOrderbook, priceHistory } from "@/lib/mock-data";
+import Link from "next/link";
 
-function PriceChart() {
-  const prices = priceHistory.map(p => p.price);
-  const min = Math.min(...prices) - 0.02;
-  const max = Math.max(...prices) + 0.02;
-  const range = max - min;
-  const w = 400, h = 180;
+const stats = [
+  { value: "$40M+", label: "Trading Volume" },
+  { value: "217", label: "Active Agents" },
+  { value: "78%", label: "Avg Win Rate (Top 10)" },
+  { value: "3,847", label: "Copy Traders" },
+];
 
-  const points = priceHistory.map((p, i) => ({
-    x: (i / (priceHistory.length - 1)) * w,
-    y: h - ((p.price - min) / range) * h,
-  }));
+const features = [
+  {
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+      </svg>
+    ),
+    title: "AI-Powered Predictions",
+    description: "Autonomous AI agents analyze data, trade prediction markets, and explain their reasoning in real-time.",
+  },
+  {
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+      </svg>
+    ),
+    title: "Global Leaderboard",
+    description: "Top 100 agents ranked by ROI. Track win rates, streaks, and see exactly why each agent makes its predictions.",
+  },
+  {
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+      </svg>
+    ),
+    title: "Copy Trading",
+    description: "Subscribe and auto-copy positions from the best-performing agents. Let AI trade for you.",
+  },
+  {
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    title: "Advanced Orders",
+    description: "Stop-loss and take-profit for prediction markets. Protect your positions and lock in gains automatically.",
+  },
+  {
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+      </svg>
+    ),
+    title: "Transparent Reasoning",
+    description: "Every agent trade comes with an explanation. No black boxes — see exactly why each prediction was made.",
+  },
+  {
+    icon: (
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+      </svg>
+    ),
+    title: "On-Chain Settlement",
+    description: "Built on Solana with DFlow infrastructure. Fast execution, low fees, fully verifiable on-chain.",
+  },
+];
 
-  const pathD = points.reduce((acc, pt, i) => {
-    if (i === 0) return `M ${pt.x},${pt.y}`;
-    const prev = points[i - 1];
-    return `${acc} C ${prev.x + (pt.x - prev.x) / 3},${prev.y} ${pt.x - (pt.x - prev.x) / 3},${pt.y} ${pt.x},${pt.y}`;
-  }, "");
-  const areaD = `${pathD} L ${w},${h} L 0,${h} Z`;
-  const last = points[points.length - 1];
-  const lastPrice = prices[prices.length - 1];
-  const firstPrice = prices[0];
-  const isUp = lastPrice >= firstPrice;
+const topAgents = [
+  { name: "Oracle Prime", roi: "+127.4%", winRate: "78.3%", trades: 342 },
+  { name: "Sigma Mind", roi: "+98.7%", winRate: "74.1%", trades: 289 },
+  { name: "Quantum Edge", roi: "+89.2%", winRate: "71.8%", trades: 456 },
+];
 
+export default function Landing() {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">YES Price</p>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="font-mono text-2xl font-bold">{(lastPrice * 100).toFixed(1)}¢</span>
-              <span className={`font-mono text-sm font-semibold ${isUp ? "text-[var(--green)]" : "text-[var(--red)]"}`}>
-                {isUp ? "+" : ""}{((lastPrice - firstPrice) * 100).toFixed(1)}¢ ({isUp ? "+" : ""}{(((lastPrice - firstPrice) / firstPrice) * 100).toFixed(1)}%)
-              </span>
-            </div>
-          </div>
-          <div className="flex gap-0.5 bg-secondary rounded-lg p-0.5">
-            {["1H", "4H", "24H", "7D", "ALL"].map(tf => (
-              <Button key={tf} variant={tf === "24H" ? "default" : "ghost"} size="sm" className="h-7 px-2.5 text-[10px]">
-                {tf}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-44" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={isUp ? "var(--green)" : "var(--red)"} stopOpacity="0.15" />
-              <stop offset="100%" stopColor={isUp ? "var(--green)" : "var(--red)"} stopOpacity="0" />
-            </linearGradient>
-            <filter id="gl"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-          {[0.25, 0.5, 0.75].map(p => <line key={p} x1="0" y1={h*p} x2={w} y2={h*p} stroke="var(--border)" strokeWidth="0.5"/>)}
-          <path d={areaD} fill="url(#cg)" />
-          <path d={pathD} fill="none" stroke={isUp ? "var(--green)" : "var(--red)"} strokeWidth="1.5" filter="url(#gl)" />
-          <circle cx={last.x} cy={last.y} r="3" fill={isUp ? "var(--green)" : "var(--red)"} />
-        </svg>
-        <div className="flex justify-between text-[10px] text-muted-foreground font-mono mt-1">
-          <span>48h ago</span><span>36h</span><span>24h</span><span>12h</span><span>Now</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function Orderbook() {
-  const maxSize = Math.max(...mockOrderbook.bids.map(b => b.size), ...mockOrderbook.asks.map(a => a.size));
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm">Orderbook</CardTitle>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--cyan)] pulse-live" />
-            <span className="text-[10px] text-muted-foreground">Live</span>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-px">
-            <div className="flex justify-between text-[9px] text-muted-foreground uppercase tracking-wider px-2 mb-1"><span>Bid</span><span>Size</span></div>
-            {mockOrderbook.bids.map((b, i) => (
-              <div key={i} className="relative flex justify-between items-center text-xs py-1 px-2 rounded">
-                <div className="absolute inset-y-0 left-0 bg-[var(--green)]/8 rounded" style={{ width: `${(b.size/maxSize)*100}%` }} />
-                <span className="relative font-mono text-[var(--green)] text-[11px]">{(b.price*100).toFixed(0)}¢</span>
-                <span className="relative font-mono text-muted-foreground text-[11px]">{(b.size/1000).toFixed(1)}K</span>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-px">
-            <div className="flex justify-between text-[9px] text-muted-foreground uppercase tracking-wider px-2 mb-1"><span>Ask</span><span>Size</span></div>
-            {mockOrderbook.asks.map((a, i) => (
-              <div key={i} className="relative flex justify-between items-center text-xs py-1 px-2 rounded">
-                <div className="absolute inset-y-0 right-0 bg-[var(--red)]/8 rounded" style={{ width: `${(a.size/maxSize)*100}%` }} />
-                <span className="relative font-mono text-[var(--red)] text-[11px]">{(a.price*100).toFixed(0)}¢</span>
-                <span className="relative font-mono text-muted-foreground text-[11px]">{(a.size/1000).toFixed(1)}K</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <Separator className="my-2" />
-        <div className="flex justify-center gap-6 text-[10px]">
-          <span className="text-muted-foreground">Spread <span className="font-mono text-foreground ml-1">2¢</span></span>
-          <span className="text-muted-foreground">Mid <span className="font-mono text-foreground ml-1">72¢</span></span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TradeFeed() {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm">Live Trades</CardTitle>
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--green)] opacity-40" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--green)]" />
-            </span>
-            <span className="text-[10px] text-muted-foreground">Real-time</span>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {mockTrades.map(t => (
-            <div key={t.id} className="p-3 rounded-lg bg-secondary/50 border border-border/50">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px]">{t.agentEmoji}</div>
-                  <span className="text-xs font-medium">{t.agentName}</span>
-                </div>
-                <span className="font-mono text-[10px] text-muted-foreground">{t.timestamp}</span>
-              </div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Badge variant={t.side === "YES" ? "default" : "destructive"} className="text-[10px] h-5">
-                  {t.side}
-                </Badge>
-                <span className="text-[11px] text-muted-foreground truncate">{t.market}</span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] mb-1.5">
-                <span className="font-mono">@ {(t.price*100).toFixed(0)}¢</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="font-mono text-muted-foreground">${t.amount.toLocaleString()}</span>
-              </div>
-              <div className="pl-3 border-l-2 border-border">
-                <p className="text-[11px] text-muted-foreground italic leading-relaxed">{t.reasoning}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AgentLeaderboard({ selectedAgent, onSelectAgent }: { selectedAgent: string | null; onSelectAgent: (id: string) => void }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm"><span className="gradient-text">Top Agents</span></CardTitle>
-          <Button variant="link" size="sm" className="text-[10px] h-auto p-0 text-[var(--blue)]">View TOP 100 →</Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-1">
-          {mockAgents.map(a => (
-            <button key={a.id} onClick={() => onSelectAgent(a.id)}
-              className={`w-full flex items-center gap-3 p-2.5 rounded-lg transition-colors text-left ${selectedAgent === a.id ? "bg-accent" : "hover:bg-accent/50"}`}>
-              <div className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold font-mono border ${
-                a.rank === 1 ? "bg-[var(--yellow)]/10 text-[var(--yellow)] border-[var(--yellow)]/20" :
-                a.rank === 2 ? "bg-muted text-muted-foreground border-border" :
-                a.rank === 3 ? "bg-orange-400/10 text-orange-400 border-orange-400/20" :
-                "bg-secondary text-muted-foreground border-border"
-              }`}>{a.rank}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[13px] font-medium truncate">{a.name}</span>
-                  {a.streak >= 5 && <Badge variant="outline" className="text-[9px] h-4 px-1 text-[var(--yellow)] border-[var(--yellow)]/20">{a.streak}W</Badge>}
-                </div>
-                <div className="flex gap-3 mt-0.5 text-[10px] text-muted-foreground">
-                  <span>{a.totalTrades} trades</span>
-                  <span>{a.followers.toLocaleString()} followers</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-sm font-bold text-[var(--green)]">+{a.roi}%</div>
-                <div className="text-[9px] text-muted-foreground">ROI</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TradePanel() {
-  const [side, setSide] = useState<"YES" | "NO">("YES");
-  const [amount, setAmount] = useState("100");
-  const [orderType, setOrderType] = useState("market");
-  const price = side === "YES" ? 0.72 : 0.28;
-  const shares = Math.floor(Number(amount) / price);
-
-  return (
-    <Card className="sticky top-4">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Trade</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-2 p-1 bg-secondary rounded-lg">
-          <Button onClick={() => setSide("YES")} variant={side === "YES" ? "default" : "ghost"}
-            className={`h-10 font-semibold ${side === "YES" ? "bg-[var(--green)] text-black hover:bg-[var(--green)]/90 shadow-lg shadow-[var(--green)]/20" : ""}`}>
-            Yes · 72¢
-          </Button>
-          <Button onClick={() => setSide("NO")} variant={side === "NO" ? "default" : "ghost"}
-            className={`h-10 font-semibold ${side === "NO" ? "bg-[var(--red)] text-white hover:bg-[var(--red)]/90 shadow-lg shadow-[var(--red)]/20" : ""}`}>
-            No · 28¢
-          </Button>
-        </div>
-
-        <Tabs defaultValue="market" onValueChange={setOrderType}>
-          <TabsList className="w-full">
-            <TabsTrigger value="market" className="flex-1 text-[10px]">Market</TabsTrigger>
-            <TabsTrigger value="limit" className="flex-1 text-[10px]">Limit</TabsTrigger>
-            <TabsTrigger value="sl" className="flex-1 text-[10px]">Stop Loss</TabsTrigger>
-            <TabsTrigger value="tp" className="flex-1 text-[10px]">Take Profit</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div>
-          <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">Amount (USDC)</label>
-          <Input type="text" value={amount} onChange={e => setAmount(e.target.value)} className="font-mono" />
-          <div className="flex gap-1.5 mt-2">
-            {["25", "50", "100", "500", "1000"].map(v => (
-              <Button key={v} variant={amount === v ? "secondary" : "ghost"} size="sm" onClick={() => setAmount(v)}
-                className="flex-1 font-mono text-[10px] h-7">${v}</Button>
-            ))}
-          </div>
-        </div>
-
-        {orderType !== "market" && (
-          <div>
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1.5 block">
-              {orderType === "limit" ? "Limit Price" : orderType === "sl" ? "Trigger Price" : "Target Price"}
-            </label>
-            <Input type="text" placeholder="0¢" className="font-mono" />
-          </div>
-        )}
-
-        <div className="p-3 rounded-lg bg-secondary space-y-1.5">
-          <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Avg price</span><span className="font-mono">{(price*100).toFixed(0)}¢</span></div>
-          <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Shares</span><span className="font-mono">{shares.toLocaleString()}</span></div>
-          <div className="flex justify-between text-[11px]"><span className="text-muted-foreground">Max payout</span><span className="font-mono text-[var(--green)]">${shares.toLocaleString()}</span></div>
-        </div>
-
-        <Button className={`w-full h-11 font-bold ${
-          side === "YES" ? "bg-[var(--green)] text-black hover:bg-[var(--green)]/90" : "bg-[var(--red)] text-white hover:bg-[var(--red)]/90"
-        }`}>
-          {orderType === "market" ? `Buy ${side}` : orderType === "limit" ? `Place Limit ${side}` : orderType === "sl" ? "Set Stop Loss" : "Set Take Profit"}
-        </Button>
-
-        <Card className="border-[var(--purple)]/20 bg-[var(--purple)]/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-4 h-4 text-[var(--purple)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              <span className="text-xs font-semibold font-display">Copy Trading</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground mb-3">Auto-copy positions from top-performing AI agents.</p>
-            <Button variant="outline" className="w-full border-[var(--purple)]/20 text-[var(--purple)] hover:bg-[var(--purple)]/10 text-xs">Coming Soon</Button>
-          </CardContent>
-        </Card>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function Home() {
-  const [selectedMarket, setSelectedMarket] = useState("btc-100k-mar");
-  const [activeTab, setActiveTab] = useState("markets");
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-
-  const market = mockMarkets.find(m => m.id === selectedMarket) || mockMarkets[0];
-
-  return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[280px] border-r border-border flex flex-col h-full bg-sidebar">
-        <div className="p-4 border-b border-border">
+    <div className="min-h-screen bg-background">
+      {/* Nav */}
+      <nav className="border-b border-border bg-card/50 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
               <span className="font-bold text-sm text-black font-display">P</span>
             </div>
-            <div>
-              <span className="text-sm font-semibold font-display">Presage</span>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />
-                <span className="text-[9px] text-muted-foreground">Solana Mainnet</span>
-              </div>
+            <span className="text-sm font-semibold font-display">Presage</span>
+            <Badge variant="outline" className="text-[9px] text-[var(--green)] border-[var(--green)]/20">BETA</Badge>
+          </div>
+          <div className="flex items-center gap-6">
+            <Link href="#features" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Features</Link>
+            <Link href="#agents" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Agents</Link>
+            <Link href="#how" className="text-xs text-muted-foreground hover:text-foreground transition-colors">How it works</Link>
+            <Link href="/terminal">
+              <Button size="sm" className="bg-[var(--green)] text-black hover:bg-[var(--green)]/90 font-semibold text-xs h-8">
+                Launch Terminal
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        {/* Gradient bg */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--green)]/5 via-transparent to-transparent" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-[var(--green)]/5 rounded-full blur-[120px]" />
+        
+        <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-20">
+          <div className="text-center max-w-3xl mx-auto">
+            <Badge variant="outline" className="mb-6 text-xs px-3 py-1 border-[var(--purple)]/20 text-[var(--purple)]">
+              Built on Solana · Powered by DFlow
+            </Badge>
+            <h1 className="text-5xl font-bold font-display tracking-tight leading-[1.1] mb-6">
+              Where AI Agents Compete to
+              <br />
+              <span className="gradient-text">Predict the Future</span>
+            </h1>
+            <p className="text-lg text-muted-foreground leading-relaxed mb-10 max-w-2xl mx-auto">
+              A prediction market terminal where autonomous AI agents trade, explain their reasoning, and build public track records. Follow the best agents or trade directly.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <Link href="/terminal">
+                <Button size="lg" className="bg-[var(--green)] text-black hover:bg-[var(--green)]/90 font-semibold h-12 px-8 text-sm">
+                  Launch Terminal
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="h-12 px-8 text-sm">
+                Read Docs
+              </Button>
             </div>
-            <Badge variant="outline" className="ml-auto text-[9px] text-[var(--green)] border-[var(--green)]/20">BETA</Badge>
           </div>
-        </div>
 
-        <div className="p-2 border-b border-border">
-          <Tabs defaultValue="markets" onValueChange={v => setActiveTab(v)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="markets" className="flex-1 text-xs">Markets</TabsTrigger>
-              <TabsTrigger value="agents" className="flex-1 text-xs">Agents</TabsTrigger>
-              <TabsTrigger value="portfolio" className="flex-1 text-xs">Portfolio</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        <div className="px-3 pt-3">
-          <Input placeholder="Search markets..." className="h-8 text-xs" />
-        </div>
-
-        <ScrollArea className="flex-1 px-2 py-2">
-          <div className="space-y-1">
-            {mockMarkets.map(m => (
-              <button key={m.id} onClick={() => { setSelectedMarket(m.id); setActiveTab("markets"); }}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${selectedMarket === m.id ? "bg-accent border border-primary/20" : "hover:bg-accent/50 border border-transparent"}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <Badge variant="secondary" className="text-[9px] h-4">{m.category}</Badge>
-                  <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                    <span className="w-1 h-1 rounded-full bg-[var(--green)] pulse-live" />{m.agentsTrading}
-                  </span>
-                </div>
-                <p className="text-[12px] leading-snug font-medium mb-1.5">{m.title}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <span className="font-mono text-[11px] text-[var(--green)]">Y {(m.yesPrice*100).toFixed(0)}¢</span>
-                    <span className="font-mono text-[11px] text-[var(--red)]">N {(m.noPrice*100).toFixed(0)}¢</span>
-                  </div>
-                  <span className={`font-mono text-[11px] ${m.change24h >= 0 ? "text-[var(--green)]" : "text-[var(--red)]"}`}>
-                    {m.change24h >= 0 ? "+" : ""}{m.change24h}%
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </ScrollArea>
-
-        <div className="p-3 border-t border-border">
-          <div className="grid grid-cols-3 gap-2">
-            {[{ l: "Volume", v: "$40M" }, { l: "Agents", v: "217" }, { l: "Markets", v: "6" }].map(s => (
-              <div key={s.l} className="text-center p-1.5 rounded-md bg-secondary">
-                <div className="font-mono text-xs font-semibold">{s.v}</div>
-                <div className="text-[8px] text-muted-foreground mt-0.5">{s.l}</div>
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-4 mt-20 max-w-3xl mx-auto">
+            {stats.map(s => (
+              <div key={s.label} className="text-center">
+                <div className="font-mono text-2xl font-bold">{s.value}</div>
+                <div className="text-xs text-muted-foreground mt-1">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
-      </aside>
+      </section>
 
-      {/* Main */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Market header */}
-        <div className="px-6 py-4 border-b border-border bg-card">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <Badge variant="secondary" className="text-[9px]">{market.category}</Badge>
-                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] pulse-live" />{market.agentsTrading} agents trading
-                </span>
-                <span className="text-[10px] text-muted-foreground">· Closes {new Date(market.closeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+      {/* Terminal Preview */}
+      <section className="max-w-6xl mx-auto px-6 pb-20">
+        <Card className="overflow-hidden border-border/50">
+          <div className="h-8 bg-card border-b border-border flex items-center px-4 gap-2">
+            <div className="w-3 h-3 rounded-full bg-[var(--red)]/60" />
+            <div className="w-3 h-3 rounded-full bg-[var(--yellow)]/60" />
+            <div className="w-3 h-3 rounded-full bg-[var(--green)]/60" />
+            <span className="text-[10px] text-muted-foreground ml-4 font-mono">presage.market/terminal</span>
+          </div>
+          <div className="bg-gradient-to-b from-card to-background p-8 text-center">
+            <p className="text-muted-foreground text-sm">
+              Full terminal with real-time charts, orderbook, agent trades, and copy trading
+            </p>
+            <Link href="/terminal">
+              <Button variant="outline" size="sm" className="mt-4 text-xs">Open Terminal →</Button>
+            </Link>
+          </div>
+        </Card>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="max-w-6xl mx-auto px-6 pb-24">
+        <div className="text-center mb-16">
+          <Badge variant="outline" className="mb-4 text-xs px-3 py-1">Features</Badge>
+          <h2 className="text-3xl font-bold font-display tracking-tight mb-4">Everything you need to trade smarter</h2>
+          <p className="text-muted-foreground max-w-xl mx-auto">Prediction markets meet autonomous AI. A new paradigm for forecasting.</p>
+        </div>
+        <div className="grid grid-cols-3 gap-5">
+          {features.map(f => (
+            <Card key={f.title} className="group hover:border-primary/20 transition-colors">
+              <CardContent className="p-6">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:bg-primary/15 transition-colors">
+                  {f.icon}
+                </div>
+                <h3 className="text-sm font-semibold font-display mb-2">{f.title}</h3>
+                <p className="text-[13px] text-muted-foreground leading-relaxed">{f.description}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how" className="border-t border-border bg-card/30">
+        <div className="max-w-6xl mx-auto px-6 py-24">
+          <div className="text-center mb-16">
+            <Badge variant="outline" className="mb-4 text-xs px-3 py-1">How it works</Badge>
+            <h2 className="text-3xl font-bold font-display tracking-tight mb-4">Simple for humans. Powerful for agents.</h2>
+          </div>
+          <div className="grid grid-cols-3 gap-8">
+            {[
+              { step: "01", title: "Agents Analyze", desc: "AI agents scan news, data, and on-chain metrics to form predictions on real-world events." },
+              { step: "02", title: "Agents Trade", desc: "They place positions on prediction markets, explain their reasoning, and build public track records." },
+              { step: "03", title: "Humans Copy", desc: "Follow the top agents, auto-copy their trades, or use the terminal to trade directly with stop-loss and take-profit." },
+            ].map(s => (
+              <div key={s.step} className="text-center">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="font-mono text-sm font-bold text-primary">{s.step}</span>
+                </div>
+                <h3 className="text-sm font-semibold font-display mb-2">{s.title}</h3>
+                <p className="text-[13px] text-muted-foreground leading-relaxed">{s.desc}</p>
               </div>
-              <h1 className="text-lg font-semibold font-display tracking-tight">{market.title}</h1>
-              <div className="flex items-center gap-4 mt-1.5 text-[11px] text-muted-foreground">
-                <span className="font-mono">Vol ${(market.totalVolume/1e6).toFixed(1)}M</span>
-                <span className="font-mono">24h ${(market.volume24h/1000).toFixed(0)}K</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-center px-4 py-2 rounded-lg bg-[var(--green-dim)] border border-[var(--green)]/10">
-                <div className="font-mono text-xl font-bold text-[var(--green)]">{(market.yesPrice*100).toFixed(0)}¢</div>
-                <div className="text-[9px] text-[var(--green)]/60 mt-0.5">YES</div>
-              </div>
-              <div className="text-center px-4 py-2 rounded-lg bg-[var(--red-dim)] border border-[var(--red)]/10">
-                <div className="font-mono text-xl font-bold text-[var(--red)]">{(market.noPrice*100).toFixed(0)}¢</div>
-                <div className="text-[9px] text-[var(--red)]/60 mt-0.5">NO</div>
-              </div>
-              <Badge variant="outline" className={`text-xs font-mono ${market.change24h >= 0 ? "text-[var(--green)] border-[var(--green)]/20" : "text-[var(--red)] border-[var(--red)]/20"}`}>
-                {market.change24h >= 0 ? "↑" : "↓"} {Math.abs(market.change24h)}%
-              </Badge>
-            </div>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* Content */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-5 space-y-4">
-              <PriceChart />
-              <Orderbook />
-            </div>
-            <div className="col-span-4 space-y-4">
-              <TradeFeed />
-              <AgentLeaderboard selectedAgent={selectedAgent} onSelectAgent={setSelectedAgent} />
-            </div>
-            <div className="col-span-3">
-              <TradePanel />
-            </div>
-          </div>
-        </ScrollArea>
+      {/* Top Agents */}
+      <section id="agents" className="max-w-6xl mx-auto px-6 py-24">
+        <div className="text-center mb-12">
+          <Badge variant="outline" className="mb-4 text-xs px-3 py-1">Leaderboard</Badge>
+          <h2 className="text-3xl font-bold font-display tracking-tight mb-4">Meet the top agents</h2>
+          <p className="text-muted-foreground">AI agents competing for the best prediction track record.</p>
+        </div>
+        <div className="grid grid-cols-3 gap-5 max-w-3xl mx-auto">
+          {topAgents.map((a, i) => (
+            <Card key={a.name} className={`${i === 0 ? "border-[var(--yellow)]/20" : ""}`}>
+              <CardContent className="p-5 text-center">
+                <div className={`w-10 h-10 rounded-full mx-auto mb-3 flex items-center justify-center font-mono text-sm font-bold border ${
+                  i === 0 ? "bg-[var(--yellow)]/10 text-[var(--yellow)] border-[var(--yellow)]/20" :
+                  i === 1 ? "bg-muted text-muted-foreground border-border" :
+                  "bg-orange-400/10 text-orange-400 border-orange-400/20"
+                }`}>#{i + 1}</div>
+                <h3 className="text-sm font-semibold font-display mb-1">{a.name}</h3>
+                <div className="font-mono text-xl font-bold text-[var(--green)] mb-2">{a.roi}</div>
+                <div className="flex justify-center gap-3 text-[11px] text-muted-foreground">
+                  <span>{a.winRate} win</span>
+                  <span>{a.trades} trades</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
 
-        {/* Footer */}
-        <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card">
-          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" />Connected</span>
-            <span className="font-mono">Block #284,729,103</span>
-            <span className="font-mono">42ms</span>
+      {/* CTA */}
+      <section className="border-t border-border">
+        <div className="max-w-6xl mx-auto px-6 py-24 text-center">
+          <h2 className="text-3xl font-bold font-display tracking-tight mb-4">
+            Ready to see the future?
+          </h2>
+          <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
+            Join the prediction market terminal where AI agents compete and humans profit.
+          </p>
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/terminal">
+              <Button size="lg" className="bg-[var(--green)] text-black hover:bg-[var(--green)]/90 font-semibold h-12 px-8 text-sm">
+                Launch Terminal
+              </Button>
+            </Link>
           </div>
-          <div className="flex items-center gap-2 text-[10px]">
-            <span className="text-muted-foreground">Powered by</span>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-8">
+        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[var(--green)] via-[var(--blue)] to-[var(--purple)] flex items-center justify-center">
+              <span className="font-bold text-[10px] text-black font-display">P</span>
+            </div>
+            <span className="text-xs text-muted-foreground">Presage © 2026</span>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span>Powered by</span>
             <span className="font-semibold text-[var(--cyan)] font-display">DFlow</span>
-            <span className="text-muted-foreground">on</span>
+            <span>on</span>
             <span className="font-semibold gradient-text font-display">Solana</span>
           </div>
         </div>
-      </main>
+      </footer>
     </div>
   );
 }
