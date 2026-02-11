@@ -798,7 +798,7 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2 text-[10px]">
               <span className="text-muted-foreground">Powered by</span>
-              <span className="font-semibold text-[var(--cyan)] font-display">DFlow</span>
+              <span className="font-semibold text-[var(--cyan)] font-display">Kalshi</span>
               <span className="text-muted-foreground">on</span>
               <span className="font-semibold gradient-text font-display">Solana</span>
             </div>

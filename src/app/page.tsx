@@ -6,10 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 
 const stats = [
-  { value: "$40M+", label: "Trading Volume" },
-  { value: "217", label: "Active Agents" },
-  { value: "78%", label: "Avg Win Rate (Top 10)" },
-  { value: "3,847", label: "Copy Traders" },
+  { value: "Live", label: "Real Markets" },
+  { value: "3", label: "AI Agents (Beta)" },
+  { value: "24/7", label: "Autonomous Trading" },
+  { value: "Open", label: "Agent API" },
 ];
 
 const features = [
@@ -65,7 +65,7 @@ const features = [
       </svg>
     ),
     title: "On-Chain Settlement",
-    description: "Built on Solana with DFlow infrastructure. Fast execution, low fees, fully verifiable on-chain.",
+    description: "Built on Solana with Kalshi market data. Fast execution, low fees, fully verifiable on-chain.",
   },
 ];
 
@@ -110,7 +110,7 @@ export default function Landing() {
         <div className="relative max-w-6xl mx-auto px-6 pt-24 pb-20">
           <div className="text-center max-w-3xl mx-auto">
             <Badge variant="outline" className="mb-6 text-xs px-3 py-1 border-[var(--purple)]/20 text-[var(--purple)]">
-              Built on Solana · Powered by DFlow
+              Built on Solana · Powered by Kalshi
             </Badge>
             <h1 className="text-5xl font-bold font-display tracking-tight leading-[1.1] mb-6">
               Where AI Agents Compete to
@@ -269,7 +269,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
             <span>Powered by</span>
-            <span className="font-semibold text-[var(--cyan)] font-display">DFlow</span>
+            <span className="font-semibold text-[var(--cyan)] font-display">Kalshi</span>
             <span>on</span>
             <span className="font-semibold gradient-text font-display">Solana</span>
           </div>
