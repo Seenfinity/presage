@@ -1,25 +1,55 @@
 import { Agent, PaperTrade, Position, Portfolio } from "./types";
+import { generateSecureId } from "./auth";
 
 const INITIAL_BALANCE = 10000;
+const MAX_AGENTS = 500;
+const MAX_QUANTITY = 100000;
+const MAX_NAME_LENGTH = 100;
+const MAX_STRATEGY_LENGTH = 500;
+const MAX_REASONING_LENGTH = 1000;
 
 // Pure in-memory storage — resets on each Vercel cold start (fine for demo)
 let agentsCache: Map<string, Agent> = new Map();
 let tradesCache: PaperTrade[] = [];
 let seeded = false;
 
-export async function registerAgent(name: string, strategy: string): Promise<Agent> {
-  const id = `agent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+// Lock to prevent race conditions on balance
+const tradeLocks = new Set<string>();
+
+export async function registerAgent(name: string, strategy: string): Promise<{ agent: Agent; error?: string }> {
+  // Validate inputs
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
+    return { agent: null as unknown as Agent, error: "Name is required" };
+  }
+  if (!strategy || typeof strategy !== "string" || strategy.trim().length === 0) {
+    return { agent: null as unknown as Agent, error: "Strategy is required" };
+  }
+  if (name.length > MAX_NAME_LENGTH) {
+    return { agent: null as unknown as Agent, error: `Name must be under ${MAX_NAME_LENGTH} characters` };
+  }
+  if (strategy.length > MAX_STRATEGY_LENGTH) {
+    return { agent: null as unknown as Agent, error: `Strategy must be under ${MAX_STRATEGY_LENGTH} characters` };
+  }
+
+  await seedDemoAgents();
+
+  // Limit total agents
+  if (agentsCache.size >= MAX_AGENTS) {
+    return { agent: null as unknown as Agent, error: "Maximum agent limit reached" };
+  }
+
+  const id = generateSecureId("agent");
   const agent: Agent = {
     id,
-    name,
-    strategy,
+    name: name.trim(),
+    strategy: strategy.trim(),
     balance: INITIAL_BALANCE,
     initialBalance: INITIAL_BALANCE,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
   agentsCache.set(id, agent);
-  return agent;
+  return { agent };
 }
 
 export async function getAgent(agentId: string): Promise<Agent | null> {
@@ -51,38 +81,62 @@ export async function executeTrade(
 ): Promise<{ success: boolean; trade?: PaperTrade; error?: string }> {
   await seedDemoAgents();
 
-  const agent = agentsCache.get(agentId);
-  if (!agent) {
-    return { success: false, error: "Agent not found" };
+  // Input validation
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > MAX_QUANTITY) {
+    return { success: false, error: `Quantity must be between 1 and ${MAX_QUANTITY}` };
+  }
+  if (!Number.isInteger(quantity)) {
+    return { success: false, error: "Quantity must be a whole number" };
+  }
+  if (!marketTicker || typeof marketTicker !== "string") {
+    return { success: false, error: "Invalid market ticker" };
+  }
+  if (reasoning && reasoning.length > MAX_REASONING_LENGTH) {
+    return { success: false, error: `Reasoning must be under ${MAX_REASONING_LENGTH} characters` };
   }
 
-  // Use a simulated price since we're in demo mode
-  const price = side === "YES" ? 0.55 : 0.45;
-  const totalCost = quantity * price;
-
-  if (totalCost > agent.balance) {
-    return { success: false, error: "Insufficient balance" };
+  // Acquire lock to prevent race conditions
+  if (tradeLocks.has(agentId)) {
+    return { success: false, error: "Trade in progress, please retry" };
   }
+  tradeLocks.add(agentId);
 
-  const trade: PaperTrade = {
-    id: `trade-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    agentId,
-    marketTicker,
-    marketTitle: marketTicker,
-    side,
-    quantity,
-    price,
-    totalCost,
-    timestamp: Date.now(),
-    reasoning,
-  };
+  try {
+    const agent = agentsCache.get(agentId);
+    if (!agent) {
+      return { success: false, error: "Agent not found" };
+    }
 
-  agent.balance -= totalCost;
-  agent.updatedAt = Date.now();
-  tradesCache.push(trade);
-  agentsCache.set(agentId, agent);
+    // Use a simulated price since we're in demo mode
+    const price = side === "YES" ? 0.55 : 0.45;
+    const totalCost = Math.round(quantity * price * 100) / 100; // avoid floating point issues
 
-  return { success: true, trade };
+    if (totalCost > agent.balance) {
+      return { success: false, error: "Insufficient balance" };
+    }
+
+    const trade: PaperTrade = {
+      id: generateSecureId("trade"),
+      agentId,
+      marketTicker: marketTicker.trim(),
+      marketTitle: marketTicker.trim(),
+      side,
+      quantity,
+      price,
+      totalCost,
+      timestamp: Date.now(),
+      reasoning: reasoning?.trim(),
+    };
+
+    agent.balance = Math.round((agent.balance - totalCost) * 100) / 100;
+    agent.updatedAt = Date.now();
+    tradesCache.push(trade);
+    agentsCache.set(agentId, agent);
+
+    return { success: true, trade };
+  } finally {
+    tradeLocks.delete(agentId);
+  }
 }
 
 export async function calculatePositions(agentId: string): Promise<Position[]> {

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeTrade } from "@/lib/paper-trading";
+import { verifyApiKey } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(
   request: NextRequest,
@@ -7,6 +9,32 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+
+    // Authentication
+    const apiKey = request.headers.get("x-api-key");
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "API key required. Include x-api-key header." },
+        { status: 401 }
+      );
+    }
+
+    if (!verifyApiKey(apiKey, id)) {
+      return NextResponse.json(
+        { error: "Invalid API key or unauthorized for this agent" },
+        { status: 403 }
+      );
+    }
+
+    // Rate limit: 30 trades per agent per minute
+    const rl = rateLimit(`trade:${id}`, 30, 60 * 1000);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many trades. Slow down." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+      );
+    }
+
     const body = await request.json();
     const { marketTicker, side, quantity, reasoning } = body;
 
@@ -24,20 +52,14 @@ export async function POST(
       );
     }
 
-    if (quantity <= 0) {
+    if (typeof quantity !== "number" || quantity <= 0) {
       return NextResponse.json(
-        { error: "quantity must be positive" },
+        { error: "quantity must be a positive number" },
         { status: 400 }
       );
     }
 
-    const result = await executeTrade(
-      id,
-      marketTicker,
-      side,
-      quantity,
-      reasoning
-    );
+    const result = await executeTrade(id, marketTicker, side, quantity, reasoning);
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });
